@@ -4,9 +4,8 @@
 #	Compile the OpenCV project
 # Arguments:
 #   $1:The source file name
-#	$2:The image file name
 # History:
-#	WangShu  Mon 14 Sep, 2015
+#	WangShu  Tue 23 Jun, 2015
 
 if [ -f $1.cpp ];
 then
@@ -46,20 +45,6 @@ then
 else
 	echo -e "  \033[0;31;1m[Error]\033[0m Linking Failed!"
 	exit 5
-fi
-
-echo -e "  \033[0;36;1m[Running]\033[0m $1 is running ..."
-tStart=$(date +%s)
-./$1  $2
-tEnd=$(date +%s)
-echo -e "  \033[0;36;1m[Info]\033[0m The program take \033[0;31;1m$((tEnd-tStart))\033[0m seconds ..."
-
-if [ $? -eq 0 ];
-then
-	echo -e "  \033[0;32;1m[Running]\033[0m Complete -- Success!"
-else
-	echo -e "  \033[0;31;1m[Error]\033[0m Running Failed!"
-	exit 6
 fi
 
 exit 0
