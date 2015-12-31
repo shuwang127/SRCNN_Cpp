@@ -20,13 +20,15 @@ SRCNN_Cpp is released under the GPL v2 License (refer to the LICENSE file for de
 
 ### Requirements
 
-1.You need to install OpenCV2+ or OpenCV3+ in your computer.
+1. You need to install *OpenCV2+* or *OpenCV3+* in your computer.
 
-  OpenCV download site: http://opencv.org/
+   OpenCV download site: http://opencv.org/
 
-2.You also need to install *pkg-config*.
+2. You also need to install *pkg-config*.
 
-**Note:** we do not need *Caffe* in your system! But we really need *g++* which is already installed in almost all Linux systems. 
+3. And we really need *g++* which is already installed in almost all Linux systems.
+
+**Note:** we do not need *Caffe* in your system!   
 
 Our *SRCNN_Cpp* is developed in fc22 x64_86 system with g++-5.3 and OpenCV 3.0.0.
 
