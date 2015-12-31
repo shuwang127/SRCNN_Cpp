@@ -20,18 +20,28 @@ SRCNN_Cpp is released under the GPL v2 License (refer to the LICENSE file for de
 
 ### Requirements
 
-You need to install OpenCV2+ or OpenCV3+ in your computer.
+1.You need to install OpenCV2+ or OpenCV3+ in your computer.
 
-OpenCV download site: http://opencv.org/
+  OpenCV download site: http://opencv.org/
+
+2.You also need to install *pkg-config*.
 
 **Note:** we do not need *Caffe* in your system! But we really need *g++* which is already installed in almost all Linux systems. 
-Our *SRCNN_Cpp* is developed in fc22 x64_86 system.
+
+Our *SRCNN_Cpp* is developed in fc22 x64_86 system with g++-5.3 and OpenCV 3.0.0.
 
 ### Compile
 
-You can compile the C/C++ files on the command line in your Linux system.
+You can compile the C/C++ files on the command line in your Linux system. And the final execute file will automatically run once you successfully finish compile process.
 
 ``` Shell
-$ ./opencv.sh SRCNN
+$ ./opencv.sh SRCNN Pictures/butterfly_GT.bmp
+```
+
+If the compile is successful, you will see the information below:
+
+``` Shell
+  [Compile] Complete -- SRCNN.o has created!
+  [Linking] Complete -- SRCNN has created!
 ```
 
