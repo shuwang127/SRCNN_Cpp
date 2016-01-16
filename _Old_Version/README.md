@@ -1,4 +1,4 @@
-# SRCNN_Cpp
+# SRCNN_Cpp (Old Version: IplImage)
 C++ Implementation of Image Super-Resolution using Convolutional Neural Network
 
 ### Introduction
