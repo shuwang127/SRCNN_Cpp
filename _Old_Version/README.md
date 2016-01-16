@@ -14,8 +14,7 @@ SRCNN_Cpp is released under the GPL v2 License (refer to the LICENSE file for de
 
 ### Contents
 1. [Requirements](#requirements)
-2. [Compile](#compile)
-3. [Demo](#demo)
+2. [Demo](#demo)
 
 ### Requirements
 
@@ -31,7 +30,7 @@ SRCNN_Cpp is released under the GPL v2 License (refer to the LICENSE file for de
 
 Our *SRCNN_Cpp* is developed in fc22 x64_86 system with g++-5.3 and OpenCV 3.0.0.
 
-### Compile and Demo
+### Demo
 
 You can compile the C/C++ files on the command line in your Linux system. And the program will execute automatically.
 
