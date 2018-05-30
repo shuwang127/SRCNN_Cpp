@@ -10,7 +10,7 @@ C++ Implementation of Image Super-Resolution using Convolutional Neural Network
  - And thank you very much for Chao's work in SRCNN.
 
 ### License
-SRCNN_Cpp is released under the GPL v2 License (refer to the LICENSE file for details).
+SRCNN_Cpp is released under the GPL v2 and LGPL v2.1 Licenses (refer to the LICENSEs files for details).
 
 ### Contents
 1. [Requirements](#requirements)
