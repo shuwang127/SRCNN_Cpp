@@ -15,8 +15,7 @@
 #include <cstring>
 #include <string>
 
-//#include <iostream>
-//#include <iomanip>
+#include <omp.h>
 
 #include "SRCNN.h"
 
@@ -46,7 +45,7 @@ static string   file_dst;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define STR_VERSION     "0.1.0.3"
+#define STR_VERSION     "0.1.1.4"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -334,7 +333,7 @@ bool parseArgs( int argc, char** argv )
         size_t posdot = file_src.find_last_of( "." );
         if ( posdot != string::npos )
         {
-            convname = file_src.substr( 0, posdot - 1 );
+            convname = file_src.substr( 0, posdot );
             srcext   = file_src.substr( posdot );
         }
         
