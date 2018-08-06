@@ -1,7 +1,9 @@
-# SRCNN_Cpp
-C++ Implementation of Image Super-Resolution using Convolutional Neural Network
+# SRCNN OpenCV GCC
+This project was forked from https://github.com/shuwang127/SRCNN_Cpp, An Open source project of **"C++ Implementation of Super-Resolution resizing with Convolutional Neural Network"**.
+
 
 ### Introduction
+This is an open source project from original of this:
 **SRCNN_Cpp** is a C++ Implementation of Image Super-Resolution using SRCNN which is proposed by Chao Dong in 2014.
  - If you want to find the details of SRCNN algorithm, please read the paper:  
 
@@ -9,8 +11,16 @@ C++ Implementation of Image Super-Resolution using Convolutional Neural Network
  - If you want to download the training code(caffe) or test code(Matlab) for SRCNN, please open your browse and visit http://mmlab.ie.cuhk.edu.hk/projects/SRCNN.html for more details.
  - And thank you very much for Chao's work in SRCNN.
 
+### What changed ?
+1. Will support FLTK GUI
+1. Code modified many things from original.
+1. Supports almost of platform - POSIX compatibled.
+    - MSYS2 and MinGW-W64
+    - GCC of Linux
+    - LLVM or CLANG of MacOSX.
+
 ### License
-SRCNN_Cpp is released under the GPL v2 License (refer to the LICENSE file for details).
+Follows original SRCNN_Cpp, and it is released under the GPL v2 License (refer to the LICENSE file for details).
 
 ### Contents
 1. [Requirements](#requirements)
@@ -18,48 +28,29 @@ SRCNN_Cpp is released under the GPL v2 License (refer to the LICENSE file for de
 3. [Demo](#demo)
 
 ### Requirements
-
-1. You need to install *OpenCV2+* or *OpenCV3+* in your computer.
-
-   OpenCV download site: http://opencv.org/
-
-2. You also need to install *pkg-config*.
-
-3. And we really need *g++* which is already installed in almost all Linux systems.
-
-**Note:** we do not need *Caffe* in your system!   
-
-Our *SRCNN_Cpp* is developed in fc22 x64_86 system with g++-5.3 and OpenCV 3.0.0.
+1. Windows may need [MSYS2](https://www.msys2.org/) and [MinGW-W64](https://github.com/msys2/msys2/wiki/MSYS2-installation).
+1. You need to install latest version of *OpenCV* to your build environments,
+   install opencv libraries into your system with one of these:
+    - MSYS2: ```pacman -S /mingw-w64-x86_64-opencv```
+    - Debian: ```sudo apt-get install libopencv-dev```
+    - MacOS
+        1. Xcode : 
+        ```
+        sudo xcode-select --install 
+        sudo xcodebuild -license
+        ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+        ```
+        1. Brew :
+        ```
+        brew update
+        brew install opencv3
+        ```
 
 ### Compile
-
-You can compile the C/C++ files on the command line in your Linux system. 
-
-``` Shell
-$ ./opencv.sh SRCNN
-```
-
-If the compile is successful, you will see the information below:
+You can compile the C/C++ files on the command line in your POSIX shell. 
 
 ``` Shell
-  [Compile] Complete -- SRCNN.o has created!
-  [Linking] Complete -- SRCNN has created!
+make
 ```
+If the compile is successful, you will see linked binary in 'bin' directory.
 
-### Demo
-
-You can run the following command to test the demo program.
-
-``` Shell
-./srcnn.sh Pictures/butterfly_GT.bmp
-```
-
-And the output images is save in the path: ./Output/
-
-If you want to test your own images, please run the following command:
-
-``` Shell
-./srcnn.sh Path_To_Your_Own_Image
-```
-
-Enjoy yourself~
