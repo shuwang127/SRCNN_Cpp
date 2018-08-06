@@ -1,0 +1,67 @@
+# Makefiel for SRCNN git cloned mod.
+# by Raphael Kim
+
+CPP = gcc
+CXX = g++
+AR  = ar
+
+# Writedown where your static built OpenCV libraries and icludes.
+STATICOPENCV_PATH = ../opencv
+STATICOPENCV_VER  = 400
+OPENCV_INCS  = -I$(STATICOPENCV_PATH)
+OPENCV_LIBS  =
+
+OPENCV_LIBS += -L$(STATICOPENCV_PATH)/build/lib
+OPENCV_LIBS += -lopencv_stitching$(STATICOPENCV_VER)
+OPENCV_LIBS += -lopencv_superres$(STATICOPENCV_VER)
+OPENCV_LIBS += -lopencv_photo$(STATICOPENCV_VER)
+OPENCV_LIBS += -lopencv_imgcodecs$(STATICOPENCV_VER)
+OPENCV_LIBS += -lopencv_features2d$(STATICOPENCV_VER)
+OPENCV_LIBS += -lopencv_imgproc$(STATICOPENCV_VER)
+OPENCV_LIBS += -lopencv_core$(STATICOPENCV_VER)
+
+OPENCV_LIBS += -L$(STATICOPENCV_PATH)/build/3rdparty/lib
+OPENCV_LIBS += -lIlmImf
+OPENCV_LIBS += -llibjasper
+OPENCV_LIBS += -llibjpeg-turbo
+OPENCV_LIBS += -llibprotobuf
+OPENCV_LIBS += -llibpng
+OPENCV_LIBS += -llibwebp
+OPENCV_LIBS += -llibtiff
+OPENCV_LIBS += -lzlib
+
+SRC_PATH = src
+OBJ_PATH = obj
+BIN_PATH = bin
+TARGET   = srcnn-static
+
+SRCS = $(wildcard $(SRC_PATH)/*.cpp)
+OBJS = $(SRCS:$(SRC_PATH)/%.cpp=$(OBJ_PATH)/%.o)
+
+CFLAGS  =
+CFLAGS += -I$(SRC_PATH)
+CFLAGS += $(OPENCV_INCS)
+
+LFLAGS  = -static
+LFLAGS += $(OPENCV_LIBS)
+LFLAGS += -s -ffast-math -O3 -mtune=native
+
+all: prepare $(BIN_PATH)/$(TARGET)
+
+prepare:
+	@mkdir -p $(OBJ_PATH)
+	@mkdir -p $(BIN_PATH)
+	@echo $(SRCS)
+
+clean:
+	@rm -rf $(OBJ_PATH)/*.o
+	@rm -rf $(BIN_PATH)/$(TARGET)
+
+$(OBJS): $(OBJ_PATH)/%.o: $(SRC_PATH)/%.cpp
+	@echo "Compiling $< ..."
+	@$(CXX) $(CFLAGS) -c $< -o $@
+
+$(BIN_PATH)/$(TARGET): $(OBJS)
+	@echo "Linking $@ ..."
+	@$(CXX) $(OBJ_PATH)/*.o $(CFLAGS) $(LFLAGS) -o $@
+

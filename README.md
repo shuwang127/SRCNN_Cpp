@@ -44,9 +44,10 @@ Follows original SRCNN_Cpp, and it is released under the GPL v2 License (refer t
     - Clone or download OpenCV source to you base level directory of this sources.
     - Go to opencv, then make a 'build' directory.
     - Type like this ( in case of MSYS2 Makefile )
-      ```cmake -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DENABLE_PRECOMPILED_HEADERS=OFF -DWITH_IPP=OFF -DWITH_TBB=OFF -DWITH_FFMPEG=OFF ..
+      ```
+      cmake -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DENABLE_PRECOMPILED_HEADERS=OFF -DWITH_IPP=OFF -DWITH_TBB=OFF -DWITH_FFMPEG=OFF -DWITH_MSMF=OFF -DWITH_VFW=OFF ..
       ```      
-    - This project doesn't using video decoding.
+    - This project doesn't using video decoding, and there's too many erorrs occurs on Video processing source in OpenCV ( damn sucks cmake options, they're useless )
 
 
 ### Compile
