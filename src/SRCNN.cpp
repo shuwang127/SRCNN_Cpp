@@ -45,7 +45,7 @@ static string   file_dst;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define STR_VERSION     "0.1.1.4"
+#define STR_VERSION     "0.1.1.5"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -403,13 +403,15 @@ int main( int argc, char** argv )
 
     if ( pImgOrigin.empty() == false )
     {
-        printf( "Read the Original Image Successfully.\n" );
+        printf( "Image %s loaded.\n", file_src.c_str() );
+		fflush( stdout );
     }
     else
     {
         printf( "Cannot load file \"%s\"\n", file_src.c_str() );
         return -1;
     }
+	
 
     /* Convert the image from BGR to YCrCb Space */
     Mat pImgYCrCb;
@@ -423,9 +425,11 @@ int main( int argc, char** argv )
     else
     if ( opt_verbose == true )
     {
-        printf( "Convert the Image to YCrCb Sucessfully.\n" );
+        printf( "Converting Image to YCrCb done.\n" );
+		fflush( stdout );
     }
 
+	
     /* Split the Y-Cr-Cb channel */
     vector<Mat> pImgYCrCbCh(3);
     split(pImgYCrCb, pImgYCrCbCh);
@@ -433,6 +437,7 @@ int main( int argc, char** argv )
     if ( opt_verbose == true )
     {
         printf( "Spliting the Y-Cr-Cb Channel.\n" );
+		fflush( stdout );
     }
 
     /* Resize the Y-Cr-Cb Channel with Bicubic Interpolation */
@@ -455,6 +460,7 @@ int main( int argc, char** argv )
     if ( opt_verbose == true )
     {
         printf( "Completed Bicubic Interpolation.\n" );
+		fflush( stdout );
     }
 
 #ifdef USE_CUBIC
@@ -477,6 +483,7 @@ int main( int argc, char** argv )
     if ( opt_verbose == true )
     {
         printf( "Completed Bicubic Version (Optional).\n" );
+		fflush( stdout );
     }
 #endif
 
@@ -497,12 +504,14 @@ int main( int argc, char** argv )
                     i + 1,
                     64 );                   
         }
+		fflush( stdout );
     }
 
     if ( opt_verbose == true )
     {
         printf( "\n" );
-        printf( "Convolutional Layer I : 100% Complete.\n " );
+        printf( "Convolutional Layer I : 100%% Complete.\n " );
+		fflush( stdout );
     }
     
     /******************* The Second Layer *******************/
@@ -518,12 +527,14 @@ int main( int argc, char** argv )
                     i + 1,
                     32 );                   
         }
+		fflush( stdout );
     }
 
     if ( opt_verbose == true )
     {
         printf( "\n" );
-        printf( "Convolutional Layer II : 100% Complete.\n " );
+        printf( "Convolutional Layer II : 100%% Complete.\n " );
+		fflush( stdout );
     }
 
     /******************* The Third Layer *******************/
@@ -535,6 +546,7 @@ int main( int argc, char** argv )
     {
         printf( "\n" );
         printf( "Convolutional Layer III : 100% Complete.\n " );
+		fflush( stdout );
     }
     
     /* Merge the Y-Cr-Cb Channel into an image */
@@ -544,6 +556,7 @@ int main( int argc, char** argv )
     if ( opt_verbose == true )
     {
         printf( "Merge Image Complete.\n" );
+		fflush( stdout );
     }
 
     /* Convert the image from YCrCb to BGR Space */
