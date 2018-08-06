@@ -8,9 +8,21 @@ AR  = ar
 # Writedown where your static built OpenCV libraries and icludes.
 STATICOPENCV_PATH = ../opencv
 STATICOPENCV_VER  = 400
-OPENCV_INCS  = -I$(STATICOPENCV_PATH)
-OPENCV_LIBS  =
 
+OPENCV_INCS  = -I$(STATICOPENCV_PATH)/build
+OPENCV_INCS += -I$(STATICOPENCV_PATH)/include/opencv
+OPENCV_INCS += -I$(STATICOPENCV_PATH)/include/opencv2
+OPENCV_INCS += -I$(STATICOPENCV_PATH)/modules/core/include
+OPENCV_INCS += -I$(STATICOPENCV_PATH)/modules/stitching/include
+OPENCV_INCS += -I$(STATICOPENCV_PATH)/modules/superres/include
+OPENCV_INCS += -I$(STATICOPENCV_PATH)/modules/photo/include
+OPENCV_INCS += -I$(STATICOPENCV_PATH)/modules/imgcodecs/include
+OPENCV_INCS += -I$(STATICOPENCV_PATH)/modules/features2d/include
+OPENCV_INCS += -I$(STATICOPENCV_PATH)/modules/imgproc/include
+OPENCV_INCS += -I$(STATICOPENCV_PATH)/modules/videoio/include
+OPENCV_INCS += -I$(STATICOPENCV_PATH)/modules/highgui/include
+
+OPENCV_LIBS  =
 OPENCV_LIBS += -L$(STATICOPENCV_PATH)/build/lib
 OPENCV_LIBS += -lopencv_stitching$(STATICOPENCV_VER)
 OPENCV_LIBS += -lopencv_superres$(STATICOPENCV_VER)
@@ -44,7 +56,7 @@ CFLAGS += $(OPENCV_INCS)
 
 LFLAGS  = -static
 LFLAGS += $(OPENCV_LIBS)
-LFLAGS += -s -ffast-math -O3 -mtune=native
+LFLAGS += -s -ffast-math -O3 -fopenmp -mtune=sse3
 
 all: prepare $(BIN_PATH)/$(TARGET)
 
