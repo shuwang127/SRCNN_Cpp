@@ -29,17 +29,25 @@ Follows original SRCNN_Cpp, and it is released under the GPL v2 License (refer t
     - MSYS2: ```pacman -S /mingw-w64-x86_64-opencv```
     - Debian: ```sudo apt-get install libopencv-dev```
     - MacOS
-        1. Xcode : 
+        1. Before install Brew : 
         ```
         sudo xcode-select --install 
         sudo xcodebuild -license
         ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
         ```
-        1. Brew :
+        1. After installed Brew :
         ```
         brew update
         brew install opencv3
         ```
+1. Static build OpenCV ( when you are using Makefile.static )
+    - Clone or download OpenCV source to you base level directory of this sources.
+    - Go to opencv, then make a 'build' directory.
+    - Type like this ( in case of MSYS2 Makefile )
+      ```cmake -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DENABLE_PRECOMPILED_HEADERS=OFF -DWITH_IPP=OFF -DWITH_TBB=OFF -DWITH_FFMPEG=OFF ..
+      ```      
+    - This project doesn't using video decoding.
+
 
 ### Compile
 You can compile the C/C++ files on the command line in your POSIX shell. 

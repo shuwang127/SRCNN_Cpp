@@ -5,7 +5,7 @@ CPP = gcc
 CXX = g++
 AR  = ar
 
-OPENCV_INCS = `pkg-config --cflags opencv`
+OPENCV_INCS = `pkg-config --static --cflags opencv`
 OPENCV_LIBS = `pkg-config --static --libs opencv`
 
 SRC_PATH = src
@@ -16,15 +16,15 @@ TARGET   = srcnn
 SRCS = $(wildcard $(SRC_PATH)/*.cpp)
 OBJS = $(SRCS:$(SRC_PATH)/%.cpp=$(OBJ_PATH)/%.o)
 
-CFLAGS  = -s -ffast-math -O3 -mtune=native
-#CFLAGS  = -mwindows -s -ffast-math -O3
+CFLAGS  =
 CFLAGS += -I$(SRC_PATH)
 CFLAGS += $(OPENCV_INCS)
 
 # Static build may require static-configured openCV.
-#LFLAGS  = -static
-LFLAGS  =
+LFLAGS  = 
 LFLAGS += $(OPENCV_LIBS)
+LFLAGS += -static-libgcc -static-libstdc++
+LFLAGS += -s -ffast-math -O3 -mtune=native
 
 all: prepare $(BIN_PATH)/$(TARGET)
 
