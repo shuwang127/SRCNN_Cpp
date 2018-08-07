@@ -1,8 +1,21 @@
-#ifndef __CONVDATA_H_INCLUDED
-#define __CONVDATA_H_INCLUDED
+#ifndef __CONVDATA_H__
+#define __CONVDATA_H__
+
+// the first convolutional layer size
+#define CONV1_FILTERS		64
+
+// the second convolutional layer size
+#define CONV2_FILTERS		32
+
+typedef float KernelMat99[9][9];
+typedef float ConvKernel64_99[CONV1_FILTERS][9][9];
+typedef float ConvKernel32x64[CONV2_FILTERS][CONV1_FILTERS];
+typedef float ConvKernel32_55[CONV2_FILTERS][5][5];
+typedef float ConvKernel1[CONV1_FILTERS];
+typedef float ConvKernel2[CONV2_FILTERS];
 
 /* The 64 cell bias in the first layer */
-float biases_conv1[CONV1_FILTERS] = {
+ConvKernel1 biases_conv1 = {
 	-4.2348, -2.8324, -1.2319, -12.4118, -7.6604, -18.6080, -4.9620, -2.4832,
 	177.2564, -18.7921, -3.4532, 2.6357, -7.5383, 4.7663, -5.5272, 1.0427,
 	-20.4844, -5.3046, -0.0639, 3.9947, -6.2322, -0.0373, -0.0128, -0.3023,
@@ -14,7 +27,7 @@ float biases_conv1[CONV1_FILTERS] = {
 };
 
 /* The 64 convolutional kernel(9*9) in the first layer */
-float weights_conv1_data[CONV1_FILTERS][9][9] = {
+ConvKernel64_99 weights_conv1_data = {
 	//01
 	-0.0887, +0.0384, -0.0732, -0.1688, -0.0296, +0.0975, +0.0168, -0.0665, +0.0474,
 	+0.0554, -0.0773, +0.2665, +0.2069, +0.2212, -0.0056, -0.1832, +0.1801, -0.0322,
@@ -658,7 +671,7 @@ float weights_conv1_data[CONV1_FILTERS][9][9] = {
 };
 
 /* The 32 cell bias in the second layer */
-float biases_conv2[CONV2_FILTERS] = {
+ConvKernel2 biases_conv2 = {
 	31.4415, 33.8385, 18.0540, 13.1325, 14.8920, 33.5325, 20.6550, 25.8825,
 	14.2545, 13.3365, -28.5855, 19.0230, -26.2650, 27.5910, 40.0095, 46.4865,
 	17.2890, -7.1145, 27.9480, 8.7465, 15.2745, -12.2910, 19.0740, -18.7170,
@@ -666,7 +679,7 @@ float biases_conv2[CONV2_FILTERS] = {
 };
 
 /* The 32 convolutional kernel(64*1) in the first layer */
-float weights_conv2_data[CONV2_FILTERS][CONV1_FILTERS] = {
+ConvKernel32x64 weights_conv2_data = {
 	//01
 	-0.2400, +0.1037, +0.1117, +0.0435, -0.2373, +0.1215, -0.2368, -0.2855,
 	-0.6127, -0.1222, -0.0601, +0.1851, +0.1601, +0.1392, +0.2136, +0.1079,
@@ -958,10 +971,10 @@ float weights_conv2_data[CONV2_FILTERS][CONV1_FILTERS] = {
 };
 
 /* The last cell bias in the third layer */
-float biases_conv3 = 12.8460;
+const float biases_conv3 = 12.8460f;
 
 /* The 32 convolutional kernel(5*5) in the third layer */
-float weights_conv3_data[32][5][5] = {
+ConvKernel32_55 weights_conv3_data = {
 	//01
 	-0.0173, -0.0067, +0.0284, +0.0179, -0.0081,
 	+0.0250, -0.0085, -0.0134, -0.0298, +0.0145,
@@ -1156,4 +1169,4 @@ float weights_conv3_data[32][5][5] = {
 	-0.0242, -0.0243, -0.0311, -0.0451, -0.0154,
 };
 
-#endif //__CONVDATA_H_INCLUDED
+#endif /// of __CONVDATA_H__

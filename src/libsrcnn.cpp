@@ -1,28 +1,20 @@
 /*******************************************************************************
- * SRCNN: Super-Resolution with deep Convolutional Neural Networks
- * ----------------------------------------------------------------------------
- * Current Author : Raphael Kim ( rageworx@gmail.com )
- * Pre-Author     : Wang Shu
- * Origin-Date    @ Sun 13 Sep, 2015
- * Descriptin ..
- *                 This source code modified version from Origianl code of Wang
- *                Shu's. All license following from origin.
+** libSRCNN: Library of Super-Resolution with deep Convolutional Neural Networks
+** ----------------------------------------------------------------------------
+** Current Author : Raphael Kim ( rageworx@gmail.com )
 *******************************************************************************/
-#ifndef EXPORTLIB
-
+#ifdef EXPORTLIB
 ////////////////////////////////////////////////////////////////////////////////
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 
-#include <unistd.h>
-#include <pthread.h>
 #ifndef NO_OMP
     #include <omp.h>
 #endif
 
-#include "SRCNN.h"
+#include "libsrcnn.h"
 
 /* pre-calculated convolutional data */
 #include "convdata.h"
@@ -30,160 +22,262 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 using namespace std;
-using namespace cv;
-using namespace SRCNN;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static float    image_multiply  = 2.0f;
-static unsigned image_width     = 0;
-static unsigned image_height    = 0;
-static bool     opt_verbose     = true;
-static bool     opt_cubicfilter = true;
-static bool     opt_debug       = false;
-static int      t_exit_code     = 0;
-
-static string   path_me;
-static string   file_me;
-static string   file_src;
-static string   file_dst;
+#define DEF_PRECALC_KR	0.299f
+#define DEF_PRECALC_KG	0.587f
+#define DEF_PRECALC_KB	0.114f
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define DEF_STR_VERSION		"0.1.2.8"
+typedef struct
+{
+	unsigned char* buff;
+	unsigned       width;
+	unsigned       height;
+	unsigned       depth;
+}ImgU8;
+
+typedef struct
+{
+	float*         buff;
+	unsigned       width;
+	unsigned       height;
+	unsigned       depth;
+}ImgF32;
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/* Function Declaration */
-void Convolution99( Mat& src, Mat& dst, \
-                    float kernel[9][9], float bias);
-
-void Convolution11( vector<Mat>& src, Mat& dst, \
-                    float kernel[CONV1_FILTERS], float bias);
-
-void Convolution55( vector<Mat>& src, Mat& dst, \
-                    float kernel[32][5][5], float bias);
+static bool opt_cubicfilter = true;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/***
- * FuncName : Convolution99
- * Function : Complete one cell in the first Convolutional Layer
- * Parameter    : src - the original input image
- *        dst - the output image
- *        kernel - the convolutional kernel
- *        bias - the cell bias
- * Output   : <void>
-***/
-void Convolution99(Mat& src, Mat& dst, float kernel[9][9], float bias)
+void convolution99( ImgU8 &src, ImgF32 &dst, KernelMat99 kernel, float bias );
+void convolution11( vector<ImgF32*> &src, ImgF32 &dst, ConvKernel1 kernel, float bias );
+void convolution55( vector<ImgF32*> &src, ImgU8 &dst, ConvKernel32_55 kernel, float bias );
+
+////////////////////////////////////////////////////////////////////////////////
+
+// some utility functions here ...
+
+void resetImgU8( ImgU8 &img )
+{
+	img.width = 0;
+	img.height = 0;
+	img.depth = 0;
+	
+	if ( img.buff != NULL )
+	{
+		delete[] img.buff;
+		img.buff = NULL;
+	}
+}
+
+void resetImgF32( ImgF32 &img )
+{
+	img.width = 0;
+	img.height = 0;
+	img.depth = 0;
+	
+	if ( img.buff != NULL )
+	{
+		delete[] img.buff;
+		img.buff = NULL;
+	}
+}
+
+// RGB->YCbCr refered to 
+// http://atrahasis.tistory.com/entry/YCbCr-%EA%B3%BC-RGB-%EA%B0%84%EC%9D%98-%EC%83%81%ED%98%B8%EB%B3%80%ED%99%98-%EA%B3%B5%EC%8B%9D%EC%9D%98-%EC%9D%BC%EB%B0%98%ED%99%94%EB%90%9C-%ED%91%9C%EC%A4%80%EA%B3%B5%EC%8B%9D-%EC%A0%95%EB%A6%AC
+void converImgU8toYCbCr( ImgU8 &src, vector<ImgF32*> &out )
+{
+	if ( src.depth < 3 )
+		return;
+	
+	// create 3 channels of Y-Cb-Cr
+	for( unsigned cnt=0; cnt<3; cnt++ )
+	{
+		ImgF32* imgT = new ImgF32;
+		imgT->width  = src.width;
+		imgT->height = src.height;
+		imgT->depth  = 1;
+		imgT->buff   = new float[ src.width * src.height ];
+		out.push_back( imgT );
+	}
+	
+	unsigned imgsz = src.width * src.height;
+	
+	for( unsigned cnt=0; cnt<imgsz; cnt++ )
+	{
+		float fR = src.buffer[ ( cnt + 0 ) * src.depth ];
+		float fG = src.buffer[ ( cnt + 1 ) * src.depth ];
+		float fB = src.buffer[ ( cnt + 2 ) * src.depth ];
+		
+		// Y
+		out[0]->buffer[cnt] = ( DEF_PRECALC_KR * fR ) +
+	                          ( DEF_PRECALC_KG * fG ) +
+							  ( DEF_PRECALC_KB * fB );
+		
+		// Cb
+		out[1]->buffer[cnt] = ( -0.16874f * fR ) -
+		                      ( 0.33126f * ( 0.5f * fB ) );
+
+		// Cr
+		out[2]->buffer[cnt] = ( 0.5f * fR ) - 
+		                      ( 0.41869f * fG ) -
+							  ( 0.08131f * fB );
+	}
+}
+
+void convertYCbCrtoImgU8( vector<ImgF32*> &src, ImgU8* &out )
+{
+	if ( src.size() != 3 )
+		return;
+	
+	out = new ImgU8;
+	
+	if ( out == NULL )
+		return;
+	
+	out->width  = src[0].width;
+	out->height = src[0].height;
+	out->depth  = 3;
+	out->buff   = new unsigned char[ out.width * out.height * 3 ];
+	
+	if ( out->buff == NULL )
+		return;
+	
+	unsigned imgsz = src.width * src.height;
+	
+	for( unsigned cnt=0; cnt<imgsz; cnt++ )
+	{
+		float fY  = src[0]->buffer[cnt];
+		float fCb = src[1]->buffer[cnt];
+		float fCr = src[2]->buffer[cnt];
+
+		// Red -> Green -> Blue ...
+		out->buffer[( cnt + 0 ) * 3] = fY + ( 1.402f * fCr );
+		out->buffer[( cnt + 1 ) * 3] = fY - ( 0.34414f * fCb ) - ( 0.71414 * fCr );
+		out->buffer[( cnt + 2 ) * 3] = fY + ( 1.772 * fCb );
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void convolution99( ImgU8 &src, ImgF32 &dst, KernelMat99 kernel, float bias )
 {
     /* Expand the src image */
-    Mat src2;
-    src2.create(Size(src.cols + 8, src.rows + 8), CV_8U);
-    
+	dst.width  = src.width + 8;
+	dst.height = src.height + 8;
+	dst.depth  = src.depth;
+	unsigned dstsz = dst.width * dst.heigfht * dst.dpeth;
+	dst.buffer = new float[ dstsz ];
+	
+	if ( dst.buffer == NULL )
+	{
+		resetImgF32( dst );
+		return;
+	}
+	    
     #pragma omp parallel for
-    for (int row = 0; row < src2.rows; row++)
+    for ( unsigned row = 0; row<dst.height; row++ )
     {
-        for (int col = 0; col < src2.cols; col++)
+        for ( unsigned col = 0; col<dst.width; col++ )
         {
-            int tmpRow = row - 4;
-            int tmpCol = col - 4;
+            int tmpRow = (int)row - 4;
+            int tmpCol = (int)col - 4;
 
-            if (tmpRow < 0)
+            if ( tmpRow < 0 )
             {
 				tmpRow = 0;
 			}
             else 
-		    if (tmpRow >= src.rows)
+		    if ( tmpRow >= src.height )
             {
-				tmpRow = src.rows - 1;
+				tmpRow = src.height - 1;
 			}
 
-            if (tmpCol < 0)
+            if ( tmpCol < 0 )
             {
 				tmpCol = 0;
 			}
             else 
-			if (tmpCol >= src.cols)
+			if ( tmpCol >= src.width )
             {
-				tmpCol = src.cols - 1;
+				tmpCol = src.width - 1;
 			}
 
-            src2.at<unsigned char>(row, col) = \
-				src.at<unsigned char>(tmpRow, tmpCol);
+			for( unsigned cnt=0; cnt<src.depth; cnt++ )
+			{
+				dst.buff[ ( row * dst.width + col ) * cnt  ] = \
+					ctx.refbuff[ ( tmpRow * src.width + tmpCol ) * cnt ];
+			}
         }
     }
 
     /* Complete the Convolution Step */
-    for (int row = 0; row < dst.rows; row++)
+    for (int row = 0; row < dst.height; row++)
     {
-        for (int col = 0; col < dst.cols; col++)
+        for (int col = 0; col < dst.width; col++)
         {
             /* Convolution */
             float temp = 0;
 
             #pragma omp parallel for
-            for (int i = 0; i < 9; i++)
-            {
-                for (int j = 0; j < 9; j++)
-                {
-                    temp += kernel[i][j] * src2.at<unsigned char>(row + i, col + j);
-                }
-            }
-			
-            temp += bias;
+			for( unsigned d=0; d<ctx.depth; d++ )
+			{
+				for ( unsigned x=0; x<9; x++ )
+				{
+					for ( unsigned y=0; y<9; y++ )
+					{
+						unsigned pos = ( ( row  + x ) * expsz_w +  ( col + y ) ) * d;
+						temp += kernel[x][y] * dst.buff[ pos ];						
+					}
+				}
+				
+				temp += bias;
 
-            /* Threshold */
-            temp = (temp >= 0) ? temp : 0;
+				/* Threshold */
+				temp = (temp >= 0) ? temp : 0;
 
-            dst.at<float>(row, col) = temp;
+				dst.buff[ ( row * dst.width + col ) * d ] = temp;
+			}
         }
     }
 }
 
-/***
- * FuncName : Convolution11
- * Function : Complete one cell in the second Convolutional Layer
- * Parameter    : src - the first layer data
- *        dst - the output data
- *        kernel - the convolutional kernel
- *        bias - the cell bias
- * Output   : <void>
-***/
-void Convolution11(vector<Mat>& src, Mat& dst, float kernel[CONV1_FILTERS], float bias)
+void convolution11( vector<ImgF32> &src, ImgF32 &dst, ConvKernel1 kernel, float bias )
 {
-    for (int row = 0; row < dst.rows; row++)
-    {
-        for (int col = 0; col < dst.cols; col++)
-        {
-            /* Process with each pixel */
-            float temp = 0;
+	//#pragma omp parallel for
+	for( unsigned d=0; d<dst.depth; d++ )
+	{
+		for ( unsigned row=0; row<dst.height; row++ )
+		{
+			for ( unsigned col=0; col<dst.width; col++ )
+			{
+				/* Process with each pixel */
+				float temp = 0;
 
-            #pragma omp parallel for
-            for (int i = 0; i < CONV1_FILTERS; i++)
-            {
-                temp += src[i].at<float>(row, col) * kernel[i];
-            }
-            temp += bias;
+				#pragma omp parallel for
+				for ( unsigned fc=0; fc<CONV1_FILTERS; fc++ )
+				{
+					temp += src[fc].buff[ ( row * src[fc].width + col ) * d ] \
+					        * kernel[fc];
+				}
+				
+				temp += bias;
 
-            /* Threshold */
-            temp = (temp >= 0) ? temp : 0;
+				/* Threshold */
+				temp = (temp >= 0) ? temp : 0;
 
-            dst.at<float>(row, col) = temp;
-        }
-    }
+				dst.buff[ ( row * dst.width + col ) * d ] = temp;
+			}
+		}
+	}
 }
 
-/***
- * FuncName : Convolution55
- * Function : Complete the cell in the third Convolutional Layer
- * Parameter    : src - the second layer data 
- *        dst - the output image
- *        kernel - the convolutional kernel
- *        bias - the cell bias
- * Output   : <void>
-***/
-void Convolution55(vector<Mat>& src, Mat& dst, float kernel[32][5][5], float bias)
+void convolution55( vector<ImgF32> &src, ImgU8 &dst, ConvKernel32_55 kernel, float bias )
 {
     /* Expand the src image */
     vector<Mat> src2(CONV2_FILTERS);
@@ -270,170 +364,21 @@ void Convolution55(vector<Mat>& src, Mat& dst, float kernel[32][5][5], float bia
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
 
-bool parseArgs( int argc, char** argv )
+int ProcessSRNN( const unsigned char* refbuff, 
+                 unsigned w, unsigned h, unsigned d,
+                 float muliply,
+                 unsigned char* &outbuff,
+                 unsigned &outbuffsz );
 {
-	for( int cnt=0; cnt<argc; cnt++ )
-	{
-		string strtmp = argv[ cnt ];
-		size_t fpos   = string::npos;
-
-		if ( cnt == 0 )
-		{
-			fpos = strtmp.find_last_of( "\\" );
-
-			if ( fpos == string::npos )
-			{
-				fpos = strtmp.find_last_of( "/" );
-			}
-
-			if ( fpos != string::npos )
-			{
-				path_me = strtmp.substr( 0, fpos );
-				file_me = strtmp.substr( fpos + 1 );
-			}
-			else
-			{
-				file_me = strtmp;
-			}
-		}
-		else
-		{
-			if ( strtmp.find( "--scale=" ) == 0 )
-			{ 
-				string strval = strtmp.substr( 8 );
-				if ( strval.size() > 0 )
-				{
-					float tmpfv = atof( strval.c_str() );
-					if ( tmpfv > 0.f )
-					{
-						image_multiply = tmpfv;
-					}
-				}
-			}
-			else
-			if ( strtmp.find( "--noverbose" ) == 0 )
-			{
-				opt_verbose = false;
-			}
-			else
-            if ( strtmp.find( "--nocubicfilter" ) == 0 )
-            {
-                opt_cubicfilter = false;
-            }
-            else
-			if ( file_src.size() == 0 )
-			{
-				file_src = strtmp;
-			}
-			else
-			if ( file_dst.size() == 0 )
-			{
-				file_dst = strtmp;
-			}
-		}
-	}
+	if ( ( refbuff == NULL ) || ( w == 0 ) || ( h == 0 ) || ( d == 0 ) )
+		return -1;
 	
-	if ( ( file_src.size() > 0 ) && ( file_dst.size() == 0 ) )
+    if ( ( ( (float)w * image_multiply ) <= 0.f ) ||
+         ( ( (float)h * image_multiply ) <= 0.f ) )
 	{
-		string convname = file_src;
-		string srcext;
-		
-		// changes name without file extention.
-		size_t posdot = file_src.find_last_of( "." );
-		if ( posdot != string::npos )
-		{
-			convname = file_src.substr( 0, posdot );
-			srcext   = file_src.substr( posdot );
-		}
-		
-		convname += "_resized";
-		if ( srcext.size() > 0 )
-		{
-			convname += srcext;
-		}
-		
-		file_dst = convname;
+		return -2;
 	}
-	
-	if ( ( file_src.size() > 0 ) && ( file_dst.size() > 0 ) )
-	{
-		return true;
-	}
-	
-	return false;
-}
-
-void printTitle()
-{
-	printf( "%s : Super-Resolution with deep Convolutional Neural Networks\n",
-			file_me.c_str() );
-	printf( "(C)2018 Raphael Kim, pre-author : Wang Shu., Program version %s\n",
-			DEF_STR_VERSION );
-}
-
-void printHelp()
-{
-	printf( "\n" );
-	printf( "    usage : %s (options) [source file name] ([output file name])\n", file_me.c_str() );
-	printf( "\n" );
-	printf( "    _options_\n" );
-	printf( "\n" );
-	printf( "        --scale=( ratio: 0.1 to .. ) : scaling by ratio.\n" );
-	printf( "        --noverbose                  : turns off all verbose\n" );
-	printf( "        --nocubicfilter              : do not use cubic filter\n" );
-    printf( "\n" );
-}
-
-void* pthreadcall( void* p )
-{
-     if ( opt_verbose == true )
-    {
-    	printTitle();
-    	printf( "\n" );
-    	printf( "- Scale multiply ratio : %.2f\n", image_multiply );
-    	fflush( stdout );
-    }
-	
-    /* Read the original image */
-    Mat pImgOrigin;
-
-    pImgOrigin = imread( file_src.c_str() );
-
-	if ( pImgOrigin.empty() == false )
-    {
-        if ( opt_verbose == true )
-        {
-            printf( "- Image load : %s\n", file_src.c_str() );
-            fflush( stdout );
-        }
-	}
-	else
-	{
-        if ( opt_verbose == true )
-        {
-            printf( "- load failure : %s\n", file_src.c_str() );
-        }
-
-        t_exit_code = -1;
-        pthread_exit( &t_exit_code );
-	}
-
-    // Test image resize target ...
-    Size testsz = pImgOrigin.size();
-    if ( ( ( (float)testsz.width * image_multiply ) <= 0.f ) ||
-         ( ( (float)testsz.height * image_multiply ) <= 0.f ) )
-    {
-        if ( opt_verbose == true )
-        {
-            printf( "- Image scale error : ratio too small.\n" );
-        }
-
-        t_exit_code = -1;
-        pthread_exit( &t_exit_code );
-    }
 
     // -------------------------------------------------------------
 
@@ -681,48 +626,5 @@ void* pthreadcall( void* p )
     t_exit_code = 0;
     pthread_exit( NULL );
     return NULL;
-}
-
-/***
- * FuncName : main
- * Function : the entry of the program
- * Parameter    : argc - the number of the initial parameters
- *        argv - the entity of the initial parameters
- * Output   : int 0 for normal / int 1 for failed
-***/
-int main( int argc, char** argv )
-{
-	if ( parseArgs( argc, argv ) == false )
-	{
-		printTitle();
-		printHelp();
-		fflush( stdout );
-		return 0;
-	}
-
-    pthread_t ptt;
-    int       tid = 0;
-
-    if ( pthread_create( &ptt, NULL, pthreadcall, &tid ) == 0 )
-    {
-#if 0
-        // Adjust pthread elevation.
-        int         ptpol = 8;
-        struct \
-        sched_param ptpar = {0};
-
-        pthread_getschedparam( ptt, &ptpol, &ptpar );
-        ptpar.sched_priority = sched_get_priority_max( ptpol );
-        pthread_setschedparam( ptt, ptpol, &ptpar );
-#endif 
-        // Wait for thread ends ..
-        pthread_join( ptt, NULL );
-    }
-    else
-    {
-        printf( "Error: pthread failure.\n" );
-    }
-	
-    return t_exit_code;
 }
 #endif /// of EXPORTLIB
