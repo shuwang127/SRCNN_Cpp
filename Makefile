@@ -16,7 +16,7 @@ TARGET   = srcnn
 SRCS = $(wildcard $(SRC_PATH)/*.cpp)
 OBJS = $(SRCS:$(SRC_PATH)/%.cpp=$(OBJ_PATH)/%.o)
 
-CFLAGS  = -mtune=native
+CFLAGS  = -mtune=native -fopenmp
 CFLAGS += -I$(SRC_PATH)
 CFLAGS += $(OPENCV_INCS)
 
@@ -24,7 +24,7 @@ CFLAGS += $(OPENCV_INCS)
 LFLAGS  = 
 LFLAGS += $(OPENCV_LIBS)
 LFLAGS += -static-libgcc -static-libstdc++
-LFLAGS += -s -ffast-math -O3 -fopenmp
+LFLAGS += -s -ffast-math -O3
 
 all: prepare $(BIN_PATH)/$(TARGET)
 

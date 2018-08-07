@@ -16,10 +16,10 @@
 #include <string>
 
 #include <unistd.h>
-#if !defined(NO_OMP)
+#include <pthread.h>
+#ifndef NO_OMP
     #include <omp.h>
 #endif
-#include <pthread.h>
 
 #include "SRCNN.h"
 
@@ -49,7 +49,7 @@ static string   file_dst;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define DEF_STR_VERSION		"0.1.1.6"
+#define DEF_STR_VERSION		"0.1.2.8"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -263,23 +263,8 @@ void Convolution55(vector<Mat>& src, Mat& dst, float kernel[32][5][5], float bia
 
             dst.at<unsigned char>(row, col) = (unsigned char)temp;
         }
-
-		if ( opt_verbose == true )
-		{
-            #pragma omp critical
-			printf( "- Processing convolutional Layer III : %04d/%04d ...  \r",
-			        row + 1,
-					dst.rows );
-            fflush( stdout );
-		}
     }
 
-	if ( opt_verbose == true )
-	{
-		printf( "\n" );
-        fflush( stdout );
-	}
-	
     return;
 }
 
@@ -578,6 +563,13 @@ void* pthreadcall( void* p )
     int cnt = 0;
 
     /******************* The First Layer *******************/
+
+    if ( opt_verbose == true )
+    {
+        printf( "- Processing convolutional layer I ... " );
+        fflush( stdout );
+    }
+
     vector<Mat> pImgConv1(CONV1_FILTERS);
     #pragma omp parallel for private( cnt )
     for ( cnt=0; cnt<CONV1_FILTERS; cnt++)
@@ -588,25 +580,22 @@ void* pthreadcall( void* p )
 		               pImgConv1[cnt], 
 					   weights_conv1_data[cnt], 
 					   biases_conv1[cnt] );
-
-		if ( opt_verbose == true )
-        {
-            #pragma omp critical
-			printf( "- Processing convolutional layer I : %03d/%03d ... \r",
-			        cnt + 1,
-                    CONV1_FILTERS );
-            fflush( stdout );
-		}
-
     }
 
     if ( opt_verbose == true )
     {
-        printf( "\n" );
+        printf( "completed.\n" );
         fflush( stdout );
     }
-	
+
     /******************* The Second Layer *******************/
+
+    if ( opt_verbose == true )
+    {
+        printf( "- Processing convolutional layer II ... " );
+        fflush( stdout );
+    }
+
     vector<Mat> pImgConv2(CONV2_FILTERS);
     #pragma omp parallel for private( cnt )
     for ( cnt=0; cnt<CONV2_FILTERS; cnt++ )
@@ -615,31 +604,30 @@ void* pthreadcall( void* p )
         Convolution11( pImgConv1, 
                        pImgConv2[cnt], 
                        weights_conv2_data[cnt], 
-                       biases_conv2[cnt]);
-		
-		if ( opt_verbose == true )
-        {
-            #pragma omp critical
-			printf( "- Processing convolutional layer II : %03d/%03d ... \r",
-			        cnt + 1,
-                    CONV2_FILTERS );
-            fflush( stdout );
-		}
+                       biases_conv2[cnt]);	
     }
 
     if ( opt_verbose == true )
     {
-        printf( "\n" );
+        printf( "completed.\n" );
         fflush( stdout );
     }
 
     /******************* The Third Layer *******************/
+
+    if ( opt_verbose == true )
+    {
+        printf( "- Processing convolutional layer III ... " );
+        fflush( stdout );
+    }
+
     Mat pImgConv3;
     pImgConv3.create(pImg[0].size(), CV_8U);
     Convolution55(pImgConv2, pImgConv3, weights_conv3_data, biases_conv3);
    
     if ( opt_verbose == true )
     {
+        printf( "completed.\n");
         printf( "- Merging images : " );
         fflush( stdout );
     }

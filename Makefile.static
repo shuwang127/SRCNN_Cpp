@@ -49,13 +49,13 @@ TARGET   = srcnn-static
 SRCS = $(wildcard $(SRC_PATH)/*.cpp)
 OBJS = $(SRCS:$(SRC_PATH)/%.cpp=$(OBJ_PATH)/%.o)
 
-CFLAGS  = -mtune=native
+CFLAGS  = -mtune=native -fopenmp
 CFLAGS += -I$(SRC_PATH)
 CFLAGS += $(OPENCV_INCS)
 
 LFLAGS  = -static
 LFLAGS += $(OPENCV_LIBS)
-LFLAGS += -s -ffast-math -O3 -fopenmp -fomit-frame-pointer
+LFLAGS += -s -ffast-math -Ofast -fopenmp -fomit-frame-pointer
 
 all: prepare $(BIN_PATH)/$(TARGET)
 
