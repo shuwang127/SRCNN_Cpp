@@ -5,8 +5,8 @@ CPP = gcc
 CXX = g++
 AR  = ar
 
-OPENCV_INCS = `pkg-config --static --cflags opencv`
-OPENCV_LIBS = `pkg-config --static --libs opencv`
+OPENCV_INCS = `pkg-config --cflags opencv`
+OPENCV_LIBS = `pkg-config --libs opencv`
 
 SRC_PATH = src
 OBJ_PATH = obj
@@ -24,7 +24,7 @@ CFLAGS += $(OPENCV_INCS)
 LFLAGS  = 
 LFLAGS += $(OPENCV_LIBS)
 LFLAGS += -static-libgcc -static-libstdc++
-LFLAGS += -s -ffast-math -O3
+LFLAGS += -s -ffast-math -O3 -fopenmp
 
 all: prepare $(BIN_PATH)/$(TARGET)
 
