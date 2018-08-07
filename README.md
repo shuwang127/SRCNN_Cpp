@@ -14,6 +14,7 @@ This is an open source project from original of this:
 ### What changed ?
 1. Will support FLTK GUI
 1. Code modified many things from original.
+1. OpenMP parallel looping, improved performance.
 1. Supports almost of platform - POSIX compatibled.
     - MSYS2 and MinGW-W64
     - GCC of Linux
