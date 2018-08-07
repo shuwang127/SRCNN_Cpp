@@ -15,9 +15,11 @@
 #include <cstring>
 #include <string>
 
+#include <unistd.h>
 #if !defined(NO_OMP)
-#include <omp.h>
+    #include <omp.h>
 #endif
+#include <pthread.h>
 
 #include "SRCNN.h"
 
@@ -32,13 +34,13 @@ using namespace SRCNN;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/* Marco Definition */
-#define USE_CUBIC
-
 static float    image_multiply  = 2.0f;
 static unsigned image_width     = 0;
 static unsigned image_height    = 0;
 static bool     opt_verbose     = true;
+static bool     opt_cubicfilter = true;
+static bool     opt_debug       = false;
+static int      t_exit_code     = 0;
 
 static string   path_me;
 static string   file_me;
@@ -333,6 +335,11 @@ bool parseArgs( int argc, char** argv )
 				opt_verbose = false;
 			}
 			else
+            if ( strtmp.find( "--nocubicfilter" ) == 0 )
+            {
+                opt_cubicfilter = false;
+            }
+            else
 			if ( file_src.size() == 0 )
 			{
 				file_src = strtmp;
@@ -392,27 +399,13 @@ void printHelp()
 	printf( "\n" );
 	printf( "        --scale=( ratio: 0.1 to .. ) : scaling by ratio.\n" );
 	printf( "        --noverbose                  : turns off all verbose\n" );
-	printf( "\n" );
+	printf( "        --nocubicfilter              : do not use cubic filter\n" );
+    printf( "\n" );
 }
 
-/***
- * FuncName : main
- * Function : the entry of the program
- * Parameter    : argc - the number of the initial parameters
- *        argv - the entity of the initial parameters
- * Output   : int 0 for normal / int 1 for failed
-***/
-int main( int argc, char** argv )
+void* pthreadcall( void* p )
 {
-	if ( parseArgs( argc, argv ) == false )
-	{
-		printTitle();
-		printHelp();
-		fflush( stdout );
-		return 0;
-	}
-	
-    if ( opt_verbose == true )
+     if ( opt_verbose == true )
     {
     	printTitle();
     	printf( "\n" );
@@ -440,7 +433,8 @@ int main( int argc, char** argv )
             printf( "- load failure : %s\n", file_src.c_str() );
         }
 
-		return -1;
+        t_exit_code = -1;
+        pthread_exit( &t_exit_code );
 	}
 
     // Test image resize target ...
@@ -453,7 +447,8 @@ int main( int argc, char** argv )
             printf( "- Image scale error : ratio too small.\n" );
         }
 
-        return -1;
+        t_exit_code = -1;
+        pthread_exit( &t_exit_code );
     }
 
     // -------------------------------------------------------------
@@ -483,7 +478,8 @@ int main( int argc, char** argv )
             printf( "Failure.\n" );
         }
 
-		return -2;
+		t_exit_code = -2;
+        pthread_exit( &t_exit_code );
 	}
 
     // ------------------------------------------------------------
@@ -511,7 +507,8 @@ int main( int argc, char** argv )
         if ( opt_verbose == true )
         {
             printf( "Failure.\n" );
-            return -3;
+            t_exit_code = -3;
+            pthread_exit( &t_exit_code );
         }
     }
 
@@ -545,35 +542,38 @@ int main( int argc, char** argv )
         printf( "Ok.\n" );
     }
 
-#ifdef USE_CUBIC
     // -----------------------------------------------------------
     
-    if ( opt_verbose == true )
+    if ( opt_cubicfilter == true )
     {
-        printf( "- Optional processing bicubic filter : " );
-    }
+        if ( opt_verbose == true )
+        {
+            printf( "- Optional processing bicubic filter : " );
+            fflush( stdout );
+        }
     
-    /* Output the Cubic Inter Result (Optional) */
-    Mat pImgCubic;
+        /* Output the Cubic Inter Result (Optional) */
+        Mat pImgCubic;
 	
-	Size newsz = pImgYCrCb.size();
-	newsz.width  *= image_multiply;
-	newsz.height *= image_multiply;
+    	Size newsz = pImgYCrCb.size();
+    	newsz.width  *= image_multiply;
+    	newsz.height *= image_multiply;
 	
-    resize( pImgYCrCb, 
-	        pImgCubic, 
-			newsz,
-			0, 
-			0, 
-			CV_INTER_CUBIC );
+        resize( pImgYCrCb, 
+    	        pImgCubic, 
+    			newsz,
+    			0, 
+    			0, 
+    			CV_INTER_CUBIC );
 			
-    cvtColor(pImgCubic, pImgCubic, CV_YCrCb2BGR);
+        cvtColor(pImgCubic, pImgCubic, CV_YCrCb2BGR);
 
-    if ( opt_verbose == true )
-    {
-        printf( "Ok.\n" );
+        if ( opt_verbose == true )
+        {
+            printf( "Ok.\n" );
+            fflush( stdout );
+        }
     }
-#endif
 
     int cnt = 0;
 
@@ -637,13 +637,7 @@ int main( int argc, char** argv )
     Mat pImgConv3;
     pImgConv3.create(pImg[0].size(), CV_8U);
     Convolution55(pImgConv2, pImgConv3, weights_conv3_data, biases_conv3);
-
-    if ( opt_verbose == true )
-    {
-        printf( "\n" );
-        fflush( stdout );
-    }
-    
+   
     if ( opt_verbose == true )
     {
         printf( "- Merging images : " );
@@ -685,11 +679,54 @@ int main( int argc, char** argv )
 	else
 	{
 		printf( "Failure.\n" );
-		return -10;
+		t_exit_code = -10;
+        pthread_exit( &t_exit_code );
 	}
 	
 	fflush( stdout );
 		
+    t_exit_code = 0;
+    pthread_exit( NULL );
+    return NULL;
+}
+
+/***
+ * FuncName : main
+ * Function : the entry of the program
+ * Parameter    : argc - the number of the initial parameters
+ *        argv - the entity of the initial parameters
+ * Output   : int 0 for normal / int 1 for failed
+***/
+int main( int argc, char** argv )
+{
+	if ( parseArgs( argc, argv ) == false )
+	{
+		printTitle();
+		printHelp();
+		fflush( stdout );
+		return 0;
+	}
+
+    pthread_t ptt;
+    int       tid = 0;
+
+    if ( pthread_create( &ptt, NULL, pthreadcall, &tid ) == 0 )
+    {
+        // Adjust pthread elevation.
+        int         ptpol = 99;
+        struct \
+        sched_param ptpar = {0};
+
+        pthread_getschedparam( ptt, &ptpol, &ptpar );
+        ptpar.sched_priority = sched_get_priority_max( ptpol );
+        pthread_setschedparam( ptt, ptpol, &ptpar );
+        pthread_join( ptt, NULL );
+    }
+    else
+    {
+        printf( "Error: pthread failure.\n" );
+    }
+	
     return 0;
 }
 #endif /// of EXPORTLIB
