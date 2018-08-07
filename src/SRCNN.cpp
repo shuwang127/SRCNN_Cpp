@@ -707,13 +707,15 @@ int main( int argc, char** argv )
     if ( pthread_create( &ptt, NULL, pthreadcall, &tid ) == 0 )
     {
         // Adjust pthread elevation.
-        int         ptpol = 99;
+        int         ptpol = 8;
         struct \
         sched_param ptpar = {0};
 
         pthread_getschedparam( ptt, &ptpol, &ptpar );
         ptpar.sched_priority = sched_get_priority_max( ptpol );
         pthread_setschedparam( ptt, ptpol, &ptpar );
+
+        // Wait for thread ends ..
         pthread_join( ptt, NULL );
     }
     else
@@ -721,6 +723,6 @@ int main( int argc, char** argv )
         printf( "Error: pthread failure.\n" );
     }
 	
-    return 0;
+    return t_exit_code;
 }
 #endif /// of EXPORTLIB
