@@ -22,8 +22,7 @@ OPENCV_INCS += -I$(STATICOPENCV_PATH)/modules/imgproc/include
 OPENCV_INCS += -I$(STATICOPENCV_PATH)/modules/videoio/include
 OPENCV_INCS += -I$(STATICOPENCV_PATH)/modules/highgui/include
 
-OPENCV_LIBS  =
-OPENCV_LIBS += -L$(STATICOPENCV_PATH)/build/lib
+OPENCV_LIBS  = -L$(STATICOPENCV_PATH)/build/lib
 OPENCV_LIBS += -lopencv_stitching$(STATICOPENCV_VER)
 OPENCV_LIBS += -lopencv_superres$(STATICOPENCV_VER)
 OPENCV_LIBS += -lopencv_photo$(STATICOPENCV_VER)
@@ -50,13 +49,13 @@ TARGET   = srcnn-static
 SRCS = $(wildcard $(SRC_PATH)/*.cpp)
 OBJS = $(SRCS:$(SRC_PATH)/%.cpp=$(OBJ_PATH)/%.o)
 
-CFLAGS  =
+CFLAGS  = -mtune=native
 CFLAGS += -I$(SRC_PATH)
 CFLAGS += $(OPENCV_INCS)
 
 LFLAGS  = -static
 LFLAGS += $(OPENCV_LIBS)
-LFLAGS += -s -ffast-math -O3 -fopenmp -mtune=sse3
+LFLAGS += -s -ffast-math -O3 -fopenmp -fomit-frame-pointer
 
 all: prepare $(BIN_PATH)/$(TARGET)
 

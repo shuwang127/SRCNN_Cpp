@@ -33,10 +33,10 @@ using namespace SRCNN;
 /* Marco Definition */
 #define USE_CUBIC
 
-static float    image_mulifly   = 2.0f;
+static float    image_multiply  = 2.0f;
 static unsigned image_width     = 0;
 static unsigned image_height    = 0;
-static bool     opt_verbose     = false;
+static bool     opt_verbose     = true;
 
 static string   path_me;
 static string   file_me;
@@ -45,7 +45,7 @@ static string   file_dst;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define STR_VERSION     "0.1.1.5"
+#define DEF_STR_VERSION		"0.1.1.6"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -76,6 +76,7 @@ void Convolution99(Mat& src, Mat& dst, float kernel[9][9], float bias)
     Mat src2;
     src2.create(Size(src.cols + 8, src.rows + 8), CV_8U);
     
+    #pragma omp parallel for
     for (int row = 0; row < src2.rows; row++)
     {
         for (int col = 0; col < src2.cols; col++)
@@ -85,26 +86,26 @@ void Convolution99(Mat& src, Mat& dst, float kernel[9][9], float bias)
 
             if (tmpRow < 0)
             {
-                tmpRow = 0;
-            }
+				tmpRow = 0;
+			}
             else 
-            if (tmpRow >= src.rows)
+		    if (tmpRow >= src.rows)
             {
-                tmpRow = src.rows - 1;
-            }
+				tmpRow = src.rows - 1;
+			}
 
             if (tmpCol < 0)
             {
-                tmpCol = 0;
-            }
+				tmpCol = 0;
+			}
             else 
-            if (tmpCol >= src.cols)
+			if (tmpCol >= src.cols)
             {
-                tmpCol = src.cols - 1;
-            }
+				tmpCol = src.cols - 1;
+			}
 
             src2.at<unsigned char>(row, col) = \
-                src.at<unsigned char>(tmpRow, tmpCol);
+				src.at<unsigned char>(tmpRow, tmpCol);
         }
     }
 
@@ -115,6 +116,8 @@ void Convolution99(Mat& src, Mat& dst, float kernel[9][9], float bias)
         {
             /* Convolution */
             float temp = 0;
+
+            #pragma omp parallel for
             for (int i = 0; i < 9; i++)
             {
                 for (int j = 0; j < 9; j++)
@@ -122,7 +125,7 @@ void Convolution99(Mat& src, Mat& dst, float kernel[9][9], float bias)
                     temp += kernel[i][j] * src2.at<unsigned char>(row + i, col + j);
                 }
             }
-            
+			
             temp += bias;
 
             /* Threshold */
@@ -150,6 +153,8 @@ void Convolution11(vector<Mat>& src, Mat& dst, float kernel[CONV1_FILTERS], floa
         {
             /* Process with each pixel */
             float temp = 0;
+
+            #pragma omp parallel for
             for (int i = 0; i < CONV1_FILTERS; i++)
             {
                 temp += src[i].at<float>(row, col) * kernel[i];
@@ -177,45 +182,56 @@ void Convolution55(vector<Mat>& src, Mat& dst, float kernel[32][5][5], float bia
 {
     /* Expand the src image */
     vector<Mat> src2(CONV2_FILTERS);
-    for (int i = 0; i < CONV2_FILTERS; i++)
+
+    int cnt = 0;
+
+    #pragma omp parallel for private(cnt)
+    for ( cnt=0; cnt<CONV2_FILTERS; cnt++)
     {
-        src2[i].create(Size(src[i].cols + 4, src[i].rows + 4), CV_32F);
-        for (int row = 0; row < src2[i].rows; row++)
+        src2[cnt].create( Size( src[cnt].cols + 4, 
+                                src[cnt].rows + 4 ), 
+                          CV_32F );
+
+        for (int row = 0; row < src2[cnt].rows; row++)
         {
-            for (int col = 0; col < src2[i].cols; col++)
+            for (int col = 0; col < src2[cnt].cols; col++)
             {
                 int tmpRow = row - 2;
                 int tmpCol = col - 2;
 
                 if (tmpRow < 0)
                 {
-                    tmpRow = 0;
-                }
+					tmpRow = 0;
+				}
                 else 
-                if (tmpRow >= src[i].rows)
+				if (tmpRow >= src[cnt].rows)
                 {
-                    tmpRow = src[i].rows - 1;
-                }
+					tmpRow = src[cnt].rows - 1;
+				}
 
                 if (tmpCol < 0)
                 {
-                    tmpCol = 0;
-                }
+					tmpCol = 0;
+				}
                 else 
-                if (tmpCol >= src[i].cols)
+				if (tmpCol >= src[cnt].cols)
                 {
-                    tmpCol = src[i].cols - 1;
-                }
+					tmpCol = src[cnt].cols - 1;
+				}
 
-                src2[i].at<float>(row, col) = \
-                    src[i].at<float>(tmpRow, tmpCol);
+                src2[cnt].at<float>(row, col) = \
+					src[cnt].at<float>(tmpRow, tmpCol);
             }
         }
     }
 
+    int row = 0;
+
     /* Complete the Convolution Step */
-    for (int row = 0; row < dst.rows; row++)
+    #pragma omp parallel for private( row )
+    for ( row=0; row<dst.rows; row++ )
     {
+        #pragma omp parallel for
         for (int col = 0; col < dst.cols; col++)
         {
             float temp = 0;
@@ -228,7 +244,7 @@ void Convolution55(vector<Mat>& src, Mat& dst, float kernel[32][5][5], float bia
                     for (int n = 0; n < 5; n++)
                     {
                         temppixel += \
-                        kernel[i][m][n] * src2[i].at<float>(row + m, col + n);
+						kernel[i][m][n] * src2[i].at<float>(row + m, col + n);
                     }
                 }
 
@@ -244,19 +260,22 @@ void Convolution55(vector<Mat>& src, Mat& dst, float kernel[32][5][5], float bia
             dst.at<unsigned char>(row, col) = (unsigned char)temp;
         }
 
-        if ( opt_verbose == true )
-        {
-            printf( "Convolutional Layer III : %04d/%04d Completed ...  \r",
-                    row + 1,
-                    dst.rows );
-        }
+		if ( opt_verbose == true )
+		{
+            #pragma omp critical
+			printf( "- Processing convolutional Layer III : %04d/%04d ...  \r",
+			        row + 1,
+					dst.rows );
+            fflush( stdout );
+		}
     }
 
-    if ( opt_verbose == true )
-    {
-        printf( "\n" );
-    }
-    
+	if ( opt_verbose == true )
+	{
+		printf( "\n" );
+        fflush( stdout );
+	}
+	
     return;
 }
 
@@ -268,110 +287,110 @@ void Convolution55(vector<Mat>& src, Mat& dst, float kernel[32][5][5], float bia
 
 bool parseArgs( int argc, char** argv )
 {
-    for( int cnt=0; cnt<argc; cnt++ )
-    {
-        string strtmp = argv[ cnt ];
-        size_t fpos   = string::npos;
+	for( int cnt=0; cnt<argc; cnt++ )
+	{
+		string strtmp = argv[ cnt ];
+		size_t fpos   = string::npos;
 
-        if ( cnt == 0 )
-        {
-            fpos = strtmp.find_last_of( "\\" );
+		if ( cnt == 0 )
+		{
+			fpos = strtmp.find_last_of( "\\" );
 
-            if ( fpos == string::npos )
-            {
-                fpos = strtmp.find_last_of( "/" );
-            }
+			if ( fpos == string::npos )
+			{
+				fpos = strtmp.find_last_of( "/" );
+			}
 
-            if ( fpos != string::npos )
-            {
-                path_me = strtmp.substr( 0, fpos );
-                file_me = strtmp.substr( fpos + 1 );
-            }
-            else
-            {
-                file_me = strtmp;
-            }
-        }
-        else
-        {
-            if ( strtmp.find( "--scale=" ) == 0 )
-            { 
-                string strval = strtmp.substr( 8 );
-                if ( strval.size() > 0 )
-                {
-                    float tmpfv = atof( strval.c_str() );
-                    if ( tmpfv > 0.f )
-                    {
-                        image_mulifly = tmpfv;
-                    }
-                }
-            }
-            else
-            if ( strtmp.find( "--verbose" ) == 0 )
-            {
-                opt_verbose = true;
-            }
-            else
-            if ( file_src.size() == 0 )
-            {
-                file_src = strtmp;
-            }
-            else
-            if ( file_dst.size() == 0 )
-            {
-                file_dst = strtmp;
-            }
-        }
-    }
-    
-    if ( ( file_src.size() > 0 ) && ( file_dst.size() == 0 ) )
-    {
-        string convname = file_src;
-        string srcext;
-        
-        // changes name without file extention.
-        size_t posdot = file_src.find_last_of( "." );
-        if ( posdot != string::npos )
-        {
-            convname = file_src.substr( 0, posdot );
-            srcext   = file_src.substr( posdot );
-        }
-        
-        convname += "_resized";
-        if ( srcext.size() > 0 )
-        {
-            convname += srcext;
-        }
-        
-        file_dst = convname;
-    }
-    
-    if ( ( file_src.size() > 0 ) && ( file_dst.size() > 0 ) )
-    {
-        return true;
-    }
-    
-    return false;
+			if ( fpos != string::npos )
+			{
+				path_me = strtmp.substr( 0, fpos );
+				file_me = strtmp.substr( fpos + 1 );
+			}
+			else
+			{
+				file_me = strtmp;
+			}
+		}
+		else
+		{
+			if ( strtmp.find( "--scale=" ) == 0 )
+			{ 
+				string strval = strtmp.substr( 8 );
+				if ( strval.size() > 0 )
+				{
+					float tmpfv = atof( strval.c_str() );
+					if ( tmpfv > 0.f )
+					{
+						image_multiply = tmpfv;
+					}
+				}
+			}
+			else
+			if ( strtmp.find( "--noverbose" ) == 0 )
+			{
+				opt_verbose = false;
+			}
+			else
+			if ( file_src.size() == 0 )
+			{
+				file_src = strtmp;
+			}
+			else
+			if ( file_dst.size() == 0 )
+			{
+				file_dst = strtmp;
+			}
+		}
+	}
+	
+	if ( ( file_src.size() > 0 ) && ( file_dst.size() == 0 ) )
+	{
+		string convname = file_src;
+		string srcext;
+		
+		// changes name without file extention.
+		size_t posdot = file_src.find_last_of( "." );
+		if ( posdot != string::npos )
+		{
+			convname = file_src.substr( 0, posdot );
+			srcext   = file_src.substr( posdot );
+		}
+		
+		convname += "_resized";
+		if ( srcext.size() > 0 )
+		{
+			convname += srcext;
+		}
+		
+		file_dst = convname;
+	}
+	
+	if ( ( file_src.size() > 0 ) && ( file_dst.size() > 0 ) )
+	{
+		return true;
+	}
+	
+	return false;
 }
 
 void printTitle()
 {
-    printf( "%s : Super-Resolution with deep Convolutional Neural Networks\n",
-            file_me.c_str() );
-    printf( "(C)2018 Raphael Kim, pre-author : Wang Shu., Program version %s\n",
-            STR_VERSION );
+	printf( "%s : Super-Resolution with deep Convolutional Neural Networks\n",
+			file_me.c_str() );
+	printf( "(C)2018 Raphael Kim, pre-author : Wang Shu., Program version %s\n",
+			DEF_STR_VERSION );
 }
 
 void printHelp()
 {
-    printf( "\n" );
-    printf( "    usage : %s (options) [source file name] ([output file name])\n" );
-    printf( "\n" );
-    printf( "    _options_\n" );
-    printf( "\n" );
-    printf( "        --scale=(ratio: 0.1 to .. ) : scaling by ratio.\n" );
-    printf( "        --verbose                   : turns on verbose\n" );
-    printf( "\n" );
+	printf( "\n" );
+	printf( "    usage : %s (options) [source file name] ([output file name])\n", file_me.c_str() );
+	printf( "\n" );
+	printf( "    _options_\n" );
+	printf( "\n" );
+	printf( "        --scale=( ratio: 0.1 to .. ) : scaling by ratio.\n" );
+	printf( "        --noverbose                  : turns off all verbose\n" );
+	printf( "\n" );
 }
 
 /***
@@ -383,158 +402,233 @@ void printHelp()
 ***/
 int main( int argc, char** argv )
 {
-    if ( parseArgs( argc, argv ) == false )
+	if ( parseArgs( argc, argv ) == false )
+	{
+		printTitle();
+		printHelp();
+		fflush( stdout );
+		return 0;
+	}
+	
+    if ( opt_verbose == true )
     {
-        printTitle();
-        printHelp();
-        fflush( stdout );
-        return 0;
+    	printTitle();
+    	printf( "\n" );
+    	printf( "- Scale multiply ratio : %.2f\n", image_multiply );
+    	fflush( stdout );
     }
-    
-    printTitle();
-    printf( "\n" );
-    printf( "Scale raitio : %.2f\n", image_mulifly );
-    fflush( stdout );
-    
+	
     /* Read the original image */
     Mat pImgOrigin;
 
     pImgOrigin = imread( file_src.c_str() );
 
-    if ( pImgOrigin.empty() == false )
+	if ( pImgOrigin.empty() == false )
     {
-        printf( "Image %s loaded.\n", file_src.c_str() );
-		fflush( stdout );
-    }
-    else
+        if ( opt_verbose == true )
+        {
+            printf( "- Image load : %s\n", file_src.c_str() );
+            fflush( stdout );
+        }
+	}
+	else
+	{
+        if ( opt_verbose == true )
+        {
+            printf( "- load failure : %s\n", file_src.c_str() );
+        }
+
+		return -1;
+	}
+
+    // Test image resize target ...
+    Size testsz = pImgOrigin.size();
+    if ( ( ( (float)testsz.width * image_multiply ) <= 0.f ) ||
+         ( ( (float)testsz.height * image_multiply ) <= 0.f ) )
     {
-        printf( "Cannot load file \"%s\"\n", file_src.c_str() );
+        if ( opt_verbose == true )
+        {
+            printf( "- Image scale error : ratio too small.\n" );
+        }
+
         return -1;
     }
-	
+
+    // -------------------------------------------------------------
+
+    if ( opt_verbose == true )
+    {
+        printf( "- Image converting to Y-Cr-Cb : " );
+        fflush( stdout );
+    }
 
     /* Convert the image from BGR to YCrCb Space */
     Mat pImgYCrCb;
     cvtColor(pImgOrigin, pImgYCrCb, CV_BGR2YCrCb);
-    
-    if ( pImgYCrCb.empty() == true )
+	
+	if ( pImgYCrCb.empty() == false )
     {
-        printf( "YCrCb Covert failure.\n" );
-        return -2;
+        if ( opt_verbose == true )
+        {
+            printf( "Ok.\n" );
+            fflush( stdout );
+        }
     }
     else
+	{
+        if ( opt_verbose == true )
+        {
+            printf( "Failure.\n" );
+        }
+
+		return -2;
+	}
+
+    // ------------------------------------------------------------
+
     if ( opt_verbose == true )
     {
-        printf( "Converting Image to YCrCb done.\n" );
-		fflush( stdout );
+        printf( "- Splitting channels : " );
+        fflush( stdout );
     }
 
-	
     /* Split the Y-Cr-Cb channel */
     vector<Mat> pImgYCrCbCh(3);
     split(pImgYCrCb, pImgYCrCbCh);
 
+    if ( pImgYCrCb.empty() == false )
+    {
+        if ( opt_verbose == true )
+        {
+            printf( "Ok.\n" );
+            fflush( stdout );
+        }
+    }
+    else
+    {
+        if ( opt_verbose == true )
+        {
+            printf( "Failure.\n" );
+            return -3;
+        }
+    }
+
+    // ------------------------------------------------------------
+
     if ( opt_verbose == true )
     {
-        printf( "Spliting the Y-Cr-Cb Channel.\n" );
-		fflush( stdout );
+        printf( "- Resizing slitted channels with bicublic interpolation : " );
     }
 
     /* Resize the Y-Cr-Cb Channel with Bicubic Interpolation */
     vector<Mat> pImg(3);
-    
+	
+    #pragma omp parallel for
     for (int i = 0; i < 3; i++)
     {
-        Size newsz = pImgYCrCbCh[i].size();
-        newsz.width  *= image_mulifly;
-        newsz.height *= image_mulifly;
-        
+		Size newsz = pImgYCrCbCh[i].size();
+		newsz.width  *= image_multiply;
+		newsz.height *= image_multiply;
+		
         resize( pImgYCrCbCh[i], 
-                pImg[i], 
-                newsz, 
-                0, 
-                0, 
-                CV_INTER_CUBIC );
+		        pImg[i], 
+				newsz, 
+				0, 
+				0, 
+				CV_INTER_CUBIC );
     }
 
     if ( opt_verbose == true )
     {
-        printf( "Completed Bicubic Interpolation.\n" );
-		fflush( stdout );
+        printf( "Ok.\n" );
     }
 
 #ifdef USE_CUBIC
+    // -----------------------------------------------------------
+    
+    if ( opt_verbose == true )
+    {
+        printf( "- Optional processing bicubic filter : " );
+    }
+    
     /* Output the Cubic Inter Result (Optional) */
     Mat pImgCubic;
-    
-    Size newsz = pImgYCrCb.size();
-    newsz.width  *= image_mulifly;
-    newsz.height *= image_mulifly;
-    
+	
+	Size newsz = pImgYCrCb.size();
+	newsz.width  *= image_multiply;
+	newsz.height *= image_multiply;
+	
     resize( pImgYCrCb, 
-            pImgCubic, 
-            newsz,
-            0, 
-            0, 
-            CV_INTER_CUBIC );
-            
+	        pImgCubic, 
+			newsz,
+			0, 
+			0, 
+			CV_INTER_CUBIC );
+			
     cvtColor(pImgCubic, pImgCubic, CV_YCrCb2BGR);
 
     if ( opt_verbose == true )
     {
-        printf( "Completed Bicubic Version (Optional).\n" );
-		fflush( stdout );
+        printf( "Ok.\n" );
     }
 #endif
 
+    int cnt = 0;
+
     /******************* The First Layer *******************/
     vector<Mat> pImgConv1(CONV1_FILTERS);
-    for (int i = 0; i < CONV1_FILTERS; i++)
+    #pragma omp parallel for private( cnt )
+    for ( cnt=0; cnt<CONV1_FILTERS; cnt++)
     {
-        pImgConv1[i].create( pImg[0].size(), CV_32F );
+        pImgConv1[cnt].create( pImg[0].size(), CV_32F );
 
         Convolution99( pImg[0], 
-                       pImgConv1[i], 
-                       weights_conv1_data[i], 
-                       biases_conv1[i] );
+		               pImgConv1[cnt], 
+					   weights_conv1_data[cnt], 
+					   biases_conv1[cnt] );
 
-        if ( opt_verbose == true )
+		if ( opt_verbose == true )
         {
-            printf( "Convolutional Layer I : %03d/%03d Cell Completed ... \r",
-                    i + 1,
-                    64 );                   
-        }
-		fflush( stdout );
+            #pragma omp critical
+			printf( "- Processing convolutional layer I : %03d/%03d ... \r",
+			        cnt + 1,
+                    CONV1_FILTERS );
+            fflush( stdout );
+		}
+
     }
 
     if ( opt_verbose == true )
     {
         printf( "\n" );
-        printf( "Convolutional Layer I : 100%% Complete.\n " );
-		fflush( stdout );
+        fflush( stdout );
     }
-    
+	
     /******************* The Second Layer *******************/
     vector<Mat> pImgConv2(CONV2_FILTERS);
-    for (int i = 0; i < CONV2_FILTERS; i++)
+    #pragma omp parallel for private( cnt )
+    for ( cnt=0; cnt<CONV2_FILTERS; cnt++ )
     {
-        pImgConv2[i].create(pImg[0].size(), CV_32F);
-        Convolution11(pImgConv1, pImgConv2[i], weights_conv2_data[i], biases_conv2[i]);
-        
-        if ( opt_verbose == true )
+        pImgConv2[cnt].create(pImg[0].size(), CV_32F);
+        Convolution11( pImgConv1, 
+                       pImgConv2[cnt], 
+                       weights_conv2_data[cnt], 
+                       biases_conv2[cnt]);
+		
+		if ( opt_verbose == true )
         {
-            printf( "Convolutional Layer II : %03d/%03d Cell Completed ... \r",
-                    i + 1,
-                    32 );                   
-        }
-		fflush( stdout );
+            #pragma omp critical
+			printf( "- Processing convolutional layer II : %03d/%03d ... \r",
+			        cnt + 1,
+                    CONV2_FILTERS );
+            fflush( stdout );
+		}
     }
 
     if ( opt_verbose == true )
     {
         printf( "\n" );
-        printf( "Convolutional Layer II : 100%% Complete.\n " );
-		fflush( stdout );
+        fflush( stdout );
     }
 
     /******************* The Third Layer *******************/
@@ -545,38 +639,55 @@ int main( int argc, char** argv )
     if ( opt_verbose == true )
     {
         printf( "\n" );
-        printf( "Convolutional Layer III : 100% Complete.\n " );
-		fflush( stdout );
+        fflush( stdout );
     }
     
+    if ( opt_verbose == true )
+    {
+        printf( "- Merging images : " );
+        fflush( stdout );
+    }
+
     /* Merge the Y-Cr-Cb Channel into an image */
     Mat pImgYCrCbOut;
     merge(pImg, pImgYCrCbOut);
 
+	if ( opt_verbose == true )
+    {
+		printf( "Ok.\n" );
+        fflush( stdout );
+	}
+
+    // ---------------------------------------------------------
+
     if ( opt_verbose == true )
     {
-        printf( "Merge Image Complete.\n" );
-		fflush( stdout );
+        printf( "- Converting channel to BGR : " );
+        fflush ( stdout );
     }
 
     /* Convert the image from YCrCb to BGR Space */
     Mat pImgBGROut;
     cvtColor(pImgYCrCbOut, pImgBGROut, CV_YCrCb2BGR);
 
-    if ( pImgBGROut.empty() == false )
-    {
-        imwrite( file_dst.c_str() , pImgBGROut);
-    
-        printf( "Image written as %s\n ", file_dst.c_str() );
-    }
-    else
-    {
-        printf( "Failed to convert image to BGR.\n" );
-        return -10;
-    }
-    
-    fflush( stdout );
-        
+	if ( pImgBGROut.empty() == false )
+	{
+        printf( "Ok.\n" );
+        printf( "- Writing result to %s : ", file_dst.c_str() );
+        fflush( stdout );
+
+		imwrite( file_dst.c_str() , pImgBGROut);
+	
+		printf( "Ok.\n" );
+	}
+	else
+	{
+		printf( "Failure.\n" );
+		return -10;
+	}
+	
+	fflush( stdout );
+		
     return 0;
 }
 #endif /// of EXPORTLIB
