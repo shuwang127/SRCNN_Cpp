@@ -15,7 +15,9 @@
 #include <cstring>
 #include <string>
 
+#if !defined(NO_OMP)
 #include <omp.h>
+#endif
 
 #include "SRCNN.h"
 

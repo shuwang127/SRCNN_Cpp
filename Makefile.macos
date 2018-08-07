@@ -19,6 +19,7 @@ OBJS = $(SRCS:$(SRC_PATH)/%.cpp=$(OBJ_PATH)/%.o)
 CFLAGS  = -mtune=native
 CFLAGS += -I$(SRC_PATH)
 CFLAGS += $(OPENCV_INCS)
+CLFAGS += -DNO_OMP
 
 # Static build may require static-configured openCV.
 LFLAGS  = 
