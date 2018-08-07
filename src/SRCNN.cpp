@@ -674,13 +674,19 @@ int main( int argc, char** argv )
 
 	if ( pImgBGROut.empty() == false )
 	{
-        printf( "Ok.\n" );
-        printf( "- Writing result to %s : ", file_dst.c_str() );
-        fflush( stdout );
+        if ( opt_verbose == true )
+        {
+            printf( "Ok.\n" );
+            printf( "- Writing result to %s : ", file_dst.c_str() );
+            fflush( stdout );
+        }
 
 		imwrite( file_dst.c_str() , pImgBGROut);
 	
-		printf( "Ok.\n" );
+        if ( opt_verbose == true )
+        {
+            printf( "Ok.\n" );
+        }
 	}
 	else
 	{
