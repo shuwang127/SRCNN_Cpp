@@ -22,6 +22,7 @@
     #include <omp.h>
 #endif
 
+#include "rk_smimg.h"
 #include "SRCNN.h"
 
 /* pre-calculated convolutional data */

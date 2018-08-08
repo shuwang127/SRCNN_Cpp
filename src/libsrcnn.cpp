@@ -15,6 +15,7 @@
 #endif
 
 #include "libsrcnn.h"
+#include "frawscale.h"
 
 /* pre-calculated convolutional data */
 #include "convdata.h"
@@ -25,28 +26,35 @@ using namespace std;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define DEF_PRECALC_KR	0.299f
-#define DEF_PRECALC_KG	0.587f
-#define DEF_PRECALC_KB	0.114f
+namespace libsrcnn {
 
 ////////////////////////////////////////////////////////////////////////////////
 
 typedef struct
 {
-	unsigned char* buff;
 	unsigned       width;
 	unsigned       height;
 	unsigned       depth;
+	unsigned char* buff;
 }ImgU8;
 
 typedef struct
 {
-	float*         buff;
 	unsigned       width;
 	unsigned       height;
 	unsigned       depth;
+	float*         buff;
 }ImgF32;
 
+typedef struct
+{
+	ImgF32		Y;
+	ImgF32		Cb;
+	ImgF32		Cr;
+}ImgYCbCr;
+
+typedef ImgF32	ImgConv1Layers[CONV1_FILTERS];
+typedef ImgF32	ImgConv2Layers[CONV2_FILTERS];
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -54,9 +62,9 @@ static bool opt_cubicfilter = true;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void convolution99( ImgU8 &src, ImgF32 &dst, KernelMat99 kernel, float bias );
-void convolution11( vector<ImgF32*> &src, ImgF32 &dst, ConvKernel1 kernel, float bias );
-void convolution55( vector<ImgF32*> &src, ImgU8 &dst, ConvKernel32_55 kernel, float bias );
+void convolution99( ImgF32 &src, ImgF32 &dst, KernelMat99 kernel, float bias );
+void convolution11( ImgConv1Layers &src, ImgYCbCr &dst, ConvKernel1 kernel, float bias );
+void convolution55( ImgConv2Layers &src, ImgU8 &dst, ConvKernel32_55 kernel, float bias );
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -75,6 +83,16 @@ void resetImgU8( ImgU8 &img )
 	}
 }
 
+void initImgU8( ImgU8 &img, unsigned w, unsigned h )
+{
+	img.width  = w;
+	img.height = h;
+	img.depth  = 3;
+
+	unsigned imgsz = w * h * 3;
+	img.buff = new unsigned char[ imgsz ];
+}
+
 void resetImgF32( ImgF32 &img )
 {
 	img.width = 0;
@@ -88,100 +106,167 @@ void resetImgF32( ImgF32 &img )
 	}
 }
 
+void initImgF32( ImgF32 &img, unsigned w, unsigned h )
+{
+	img.width = w;
+	img.height = h;
+	img.depth = 1;
+	
+	unsigned buffsz = w * h;
+	img.buff = new float[ buffsz ];
+}
+
+void initImgConvLayers( ImgF32* img, unsigned w, unsigned h, unsigned count )
+{
+	if ( img != NULL )
+	{
+		for( unsigned cnt=0; cnt<count; cnt++ )
+		{
+			img[cnt].width  = w;
+			img[cnt].height = h;
+			img[cnt].depth  = 1;
+
+			unsigned buffsz = w * h;
+			img[cnt].buff = new float[ buffsz ];
+		}
+	}
+}
+
+void discardConvLayers( ImgF32* img, unsigned count )
+{
+	if ( img != NULL )
+	{
+		for( unsigned cnt=0; cnt<count; cnt++ )
+		{
+			if ( img[cnt].buff != NULL )
+			{
+				delete[] img[cnt].buff;
+				img[cnt].buff = NULL;
+			}
+		}
+	}
+}
+
+void discardImgYCbCr( ImgYCbCr &img )
+{
+	resetImgF32( img.Y );
+	resetImgF32( img.Cb );
+	resetImgF32( img.Cr );
+}
+
+void initImgYCbCr( ImgYCbCr &img, unsigned w, unsigned h )
+{
+	initImgF32( img.Y, w, h );
+	initImgF32( img.Cb, w, h );
+	initImgF32( img.Cr, w, h );
+}
+
 // RGB->YCbCr refered to 
 // http://atrahasis.tistory.com/entry/YCbCr-%EA%B3%BC-RGB-%EA%B0%84%EC%9D%98-%EC%83%81%ED%98%B8%EB%B3%80%ED%99%98-%EA%B3%B5%EC%8B%9D%EC%9D%98-%EC%9D%BC%EB%B0%98%ED%99%94%EB%90%9C-%ED%91%9C%EC%A4%80%EA%B3%B5%EC%8B%9D-%EC%A0%95%EB%A6%AC
-void converImgU8toYCbCr( ImgU8 &src, vector<ImgF32*> &out )
+void converImgU8toYCbCr( ImgU8 &src, ImgYCbCr &out )
 {
 	if ( src.depth < 3 )
 		return;
 	
-	// create 3 channels of Y-Cb-Cr
-	for( unsigned cnt=0; cnt<3; cnt++ )
-	{
-		ImgF32* imgT = new ImgF32;
-		imgT->width  = src.width;
-		imgT->height = src.height;
-		imgT->depth  = 1;
-		imgT->buff   = new float[ src.width * src.height ];
-		out.push_back( imgT );
-	}
+	initImgYCbCr( out, src.width, src.height );
 	
 	unsigned imgsz = src.width * src.height;
 	
 	for( unsigned cnt=0; cnt<imgsz; cnt++ )
 	{
-		float fR = src.buffer[ ( cnt + 0 ) * src.depth ];
-		float fG = src.buffer[ ( cnt + 1 ) * src.depth ];
-		float fB = src.buffer[ ( cnt + 2 ) * src.depth ];
+		float fR = src.buff[ ( cnt + 0 ) * src.depth ];
+		float fG = src.buff[ ( cnt + 1 ) * src.depth ];
+		float fB = src.buff[ ( cnt + 2 ) * src.depth ];
 		
 		// Y
-		out[0]->buffer[cnt] = ( DEF_PRECALC_KR * fR ) +
-	                          ( DEF_PRECALC_KG * fG ) +
-							  ( DEF_PRECALC_KB * fB );
+		out.Y.buff[cnt] = ( 0.299f * fR ) + ( 0.587f * fG ) + ( 0.114f * fB );
 		
 		// Cb
-		out[1]->buffer[cnt] = ( -0.16874f * fR ) -
-		                      ( 0.33126f * ( 0.5f * fB ) );
+		out.Cb.buff[cnt] = ( -0.16874f * fR ) - ( 0.33126f * ( 0.5f * fB ) );
 
 		// Cr
-		out[2]->buffer[cnt] = ( 0.5f * fR ) - 
-		                      ( 0.41869f * fG ) -
-							  ( 0.08131f * fB );
+		out.Cr.buff[cnt] = ( 0.5f * fR ) - ( 0.41869f * fG ) - ( 0.08131f * fB );
 	}
 }
 
-void convertYCbCrtoImgU8( vector<ImgF32*> &src, ImgU8* &out )
+void convertImgF32x3toImgU8( ImgF32* src, ImgU8 &out )
 {
-	if ( src.size() != 3 )
+	if ( src == NULL )
 		return;
 	
+	unsigned imgsz = src[0].width * src[0].height;
+
+	out.width  = src[0].width;
+	out.height = src[0].height;
+	out.depth  = 3;
+	out.buff   = new unsigned char[ imgsz * 3 ];		
+		
+	for( unsigned cnt=0; cnt<imgsz; cnt++ )
+	{
+		float fY  = src[0].buff[cnt];
+		float fCb = src[1].buff[cnt];
+		float fCr = src[2].buff[cnt];
+
+		// Red -> Green -> Blue ...
+		out.buff[( cnt + 0 ) * 3] = \
+				(unsigned char)(fY + ( 1.402f * fCr ));
+		out.buff[( cnt + 1 ) * 3] = \
+				(unsigned char)(fY - ( 0.34414f * fCb ) - ( 0.71414 * fCr ));
+		out.buff[( cnt + 2 ) * 3] = \
+				(unsigned char)(fY + ( 1.772 * fCb ));
+	}
+}
+
+void convertYCbCrtoImgU8( ImgYCbCr &src, ImgU8* &out )
+{
 	out = new ImgU8;
 	
 	if ( out == NULL )
 		return;
 	
-	out->width  = src[0].width;
-	out->height = src[0].height;
+	unsigned imgsz = src.Y.width * src.Y.height;
+
+	out->width  = src.Y.width;
+	out->height = src.Y.height;
 	out->depth  = 3;
-	out->buff   = new unsigned char[ out.width * out.height * 3 ];
+	out->buff   = new unsigned char[ imgsz * 3 ];
 	
 	if ( out->buff == NULL )
 		return;
 	
-	unsigned imgsz = src.width * src.height;
-	
 	for( unsigned cnt=0; cnt<imgsz; cnt++ )
 	{
-		float fY  = src[0]->buffer[cnt];
-		float fCb = src[1]->buffer[cnt];
-		float fCr = src[2]->buffer[cnt];
+		float fY  = src.Y.buff[cnt];
+		float fCb = src.Cb.buff[cnt];
+		float fCr = src.Cr.buff[cnt];
 
 		// Red -> Green -> Blue ...
-		out->buffer[( cnt + 0 ) * 3] = fY + ( 1.402f * fCr );
-		out->buffer[( cnt + 1 ) * 3] = fY - ( 0.34414f * fCb ) - ( 0.71414 * fCr );
-		out->buffer[( cnt + 2 ) * 3] = fY + ( 1.772 * fCb );
+		out->buff[( cnt + 0 ) * 3] = \
+				(unsigned char)(fY + ( 1.402f * fCr ));
+		out->buff[( cnt + 1 ) * 3] = \
+				(unsigned char)(fY - ( 0.34414f * fCb ) - ( 0.71414 * fCr ));
+		out->buff[( cnt + 2 ) * 3] = \
+				(unsigned char)(fY + ( 1.772 * fCb ));
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void convolution99( ImgU8 &src, ImgF32 &dst, KernelMat99 kernel, float bias )
+void convolution99( ImgF32 &src, ImgF32 &dst, KernelMat99 kernel, float bias )
 {
     /* Expand the src image */
-	dst.width  = src.width + 8;
-	dst.height = src.height + 8;
-	dst.depth  = src.depth;
-	unsigned dstsz = dst.width * dst.heigfht * dst.dpeth;
-	dst.buffer = new float[ dstsz ];
+	initImgF32( dst, src.width + 8, src.height + 8 );
 	
-	if ( dst.buffer == NULL )
+	if ( dst.buff == NULL )
 	{
 		resetImgF32( dst );
 		return;
 	}
-	    
-    #pragma omp parallel for
-    for ( unsigned row = 0; row<dst.height; row++ )
+	
+	unsigned row = 0;
+	
+    #pragma omp parallel for private(row)
+    for ( row = 0; row<dst.height; row++ )
     {
         for ( unsigned col = 0; col<dst.width; col++ )
         {
@@ -208,104 +293,94 @@ void convolution99( ImgU8 &src, ImgF32 &dst, KernelMat99 kernel, float bias )
 				tmpCol = src.width - 1;
 			}
 
-			for( unsigned cnt=0; cnt<src.depth; cnt++ )
-			{
-				dst.buff[ ( row * dst.width + col ) * cnt  ] = \
-					ctx.refbuff[ ( tmpRow * src.width + tmpCol ) * cnt ];
-			}
+			dst.buff[ row * dst.width + col ] = \
+								src.buff[ tmpRow * src.width + tmpCol ];
         }
     }
 
     /* Complete the Convolution Step */
-    for (int row = 0; row < dst.height; row++)
+	#pragma omp parallel for private(row)
+    for ( row = 0; row < dst.height; row++ )
     {
-        for (int col = 0; col < dst.width; col++)
+        for ( unsigned col = 0; col < dst.width; col++ )
         {
             /* Convolution */
             float temp = 0;
 
-            #pragma omp parallel for
-			for( unsigned d=0; d<ctx.depth; d++ )
+			for ( unsigned x=0; x<9; x++ )
 			{
-				for ( unsigned x=0; x<9; x++ )
+				for ( unsigned y=0; y<9; y++ )
 				{
-					for ( unsigned y=0; y<9; y++ )
-					{
-						unsigned pos = ( ( row  + x ) * expsz_w +  ( col + y ) ) * d;
-						temp += kernel[x][y] * dst.buff[ pos ];						
-					}
+					unsigned pos = ( row  + x ) * dst.width + ( col + y );
+	
+					temp += kernel[x][y] * dst.buff[pos];						
 				}
-				
-				temp += bias;
-
-				/* Threshold */
-				temp = (temp >= 0) ? temp : 0;
-
-				dst.buff[ ( row * dst.width + col ) * d ] = temp;
 			}
+			
+			temp += bias;
+
+			/* Threshold */
+			temp = (temp >= 0) ? temp : 0;
+
+			dst.buff[ row * dst.width + col ] = temp;
         }
     }
 }
 
-void convolution11( vector<ImgF32> &src, ImgF32 &dst, ConvKernel1 kernel, float bias )
+void convolution11( ImgConv1Layers &src, ImgF32 &dst, ConvKernel1 kernel, float bias )
 {
 	//#pragma omp parallel for
-	for( unsigned d=0; d<dst.depth; d++ )
+	for ( unsigned row=0; row<dst.height; row++ )
 	{
-		for ( unsigned row=0; row<dst.height; row++ )
+		for ( unsigned col=0; col<dst.width; col++ )
 		{
-			for ( unsigned col=0; col<dst.width; col++ )
+			/* Process with each pixel */
+			float temp = 0;
+
+			#pragma omp parallel for
+			for ( unsigned fc=0; fc<CONV1_FILTERS; fc++ )
 			{
-				/* Process with each pixel */
-				float temp = 0;
-
-				#pragma omp parallel for
-				for ( unsigned fc=0; fc<CONV1_FILTERS; fc++ )
-				{
-					temp += src[fc].buff[ ( row * src[fc].width + col ) * d ] \
-					        * kernel[fc];
-				}
-				
-				temp += bias;
-
-				/* Threshold */
-				temp = (temp >= 0) ? temp : 0;
-
-				dst.buff[ ( row * dst.width + col ) * d ] = temp;
+				temp += src[fc].buff[ row * src[fc].width + col ] * kernel[fc];						
 			}
+			
+			temp += bias;
+
+			/* Threshold */
+			temp = (temp >= 0) ? temp : 0;
+
+			dst.buff[ row * dst.width + col ] = temp;
 		}
 	}
 }
 
-void convolution55( vector<ImgF32> &src, ImgU8 &dst, ConvKernel32_55 kernel, float bias )
+void convolution55( ImgConv2Layers &src, ImgU8 &dst, ConvKernel32_55 kernel, float bias )
 {
     /* Expand the src image */
-    vector<Mat> src2(CONV2_FILTERS);
+	ImgConv2Layers src2;
+	initImgConvLayers( &src2[0], 
+	                   src[0].width, src[0].height, 
+					   CONV2_FILTERS );
 
-    int cnt = 0;
+    unsigned cnt = 0;
 
     #pragma omp parallel for private(cnt)
-    for ( cnt=0; cnt<CONV2_FILTERS; cnt++)
+    for ( cnt=0; cnt<CONV2_FILTERS; cnt++ )
     {
-        src2[cnt].create( Size( src[cnt].cols + 4, 
-                                src[cnt].rows + 4 ), 
-                          CV_32F );
-
-        for (int row = 0; row < src2[cnt].rows; row++)
+        for ( unsigned row = 0; row < src2[cnt].height; row++ )
         {
-            for (int col = 0; col < src2[cnt].cols; col++)
+            for ( unsigned col = 0; col < src2[cnt].width; col++ )
             {
-                int tmpRow = row - 2;
-                int tmpCol = col - 2;
+                int tmpRow = (int)row - 2;
+                int tmpCol = (int)col - 2;
 
                 if (tmpRow < 0)
                 {
 					tmpRow = 0;
 				}
                 else 
-				if (tmpRow >= src[cnt].rows)
+				if (tmpRow >= src[cnt].height)
                 {
-					tmpRow = src[cnt].rows - 1;
+					tmpRow = src[cnt].height - 1;
 				}
 
                 if (tmpCol < 0)
@@ -313,13 +388,13 @@ void convolution55( vector<ImgF32> &src, ImgU8 &dst, ConvKernel32_55 kernel, flo
 					tmpCol = 0;
 				}
                 else 
-				if (tmpCol >= src[cnt].cols)
+				if (tmpCol >= src[cnt].width)
                 {
-					tmpCol = src[cnt].cols - 1;
+					tmpCol = src[cnt].width - 1;
 				}
 
-                src2[cnt].at<float>(row, col) = \
-					src[cnt].at<float>(tmpRow, tmpCol);
+                src2[cnt].buff[ row * src2[cnt].width + col ] = \
+						src[cnt].buff[ tmpRow * src[cnt].width + tmpCol];
             }
         }
     }
@@ -328,22 +403,23 @@ void convolution55( vector<ImgF32> &src, ImgU8 &dst, ConvKernel32_55 kernel, flo
 
     /* Complete the Convolution Step */
     #pragma omp parallel for private( row )
-    for ( row=0; row<dst.rows; row++ )
+    for ( row=0; row<dst.height; row++ )
     {
         #pragma omp parallel for
-        for (int col = 0; col < dst.cols; col++)
+        for ( unsigned col = 0; col < dst.width; col++)
         {
             float temp = 0;
 
-            for (int i = 0; i < CONV2_FILTERS; i++)
+            for ( unsigned i = 0; i < CONV2_FILTERS; i++)
             {
                 double temppixel = 0;
-                for (int m = 0; m < 5; m++)
+				
+                for ( unsigned m = 0; m < 5; m++ )
                 {
-                    for (int n = 0; n < 5; n++)
+                    for ( unsigned n = 0; n < 5; n++ )
                     {
-                        temppixel += \
-						kernel[i][m][n] * src2[i].at<float>(row + m, col + n);
+						unsigned pos = ( row + m ) * src2[i].width + ( col + n );
+                        temppixel += kernel[i][m][n] * src2[i].buff[ pos ];
                     }
                 }
 
@@ -356,12 +432,16 @@ void convolution55( vector<ImgF32> &src, ImgU8 &dst, ConvKernel32_55 kernel, flo
             temp = (temp >= 0) ? temp : 0;
             temp = (temp <= 255) ? temp : 255;
 
-            dst.at<unsigned char>(row, col) = (unsigned char)temp;
+            dst.buff[ row * dst.width + col ] = (unsigned char)temp;
         }
     }
 
-    return;
+	discardConvLayers( &src2[0], CONV2_FILTERS );	
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+}; /// of namespace libsrcnn
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -369,262 +449,123 @@ int ProcessSRNN( const unsigned char* refbuff,
                  unsigned w, unsigned h, unsigned d,
                  float muliply,
                  unsigned char* &outbuff,
-                 unsigned &outbuffsz );
+                 unsigned &outbuffsz )
 {
 	if ( ( refbuff == NULL ) || ( w == 0 ) || ( h == 0 ) || ( d == 0 ) )
 		return -1;
 	
-    if ( ( ( (float)w * image_multiply ) <= 0.f ) ||
-         ( ( (float)h * image_multiply ) <= 0.f ) )
+    if ( ( ( (float)w * muliply ) <= 0.f ) ||
+         ( ( (float)h * muliply ) <= 0.f ) )
 	{
 		return -2;
 	}
 
     // -------------------------------------------------------------
-
-    if ( opt_verbose == true )
-    {
-        printf( "- Image converting to Y-Cr-Cb : " );
-        fflush( stdout );
-    }
-
-    /* Convert the image from BGR to YCrCb Space */
-    Mat pImgYCrCb;
-    cvtColor(pImgOrigin, pImgYCrCb, CV_BGR2YCrCb);
+	// Convert RGB to Y-Cb-Cr
 	
-	if ( pImgYCrCb.empty() == false )
-    {
-        if ( opt_verbose == true )
-        {
-            printf( "Ok.\n" );
-            fflush( stdout );
-        }
-    }
-    else
-	{
-        if ( opt_verbose == true )
-        {
-            printf( "Failure.\n" );
-        }
-
-		t_exit_code = -2;
-        pthread_exit( &t_exit_code );
-	}
-
-    // ------------------------------------------------------------
-
-    if ( opt_verbose == true )
-    {
-        printf( "- Splitting channels : " );
-        fflush( stdout );
-    }
-
-    /* Split the Y-Cr-Cb channel */
-    vector<Mat> pImgYCrCbCh(3);
-    split(pImgYCrCb, pImgYCrCbCh);
-
-    if ( pImgYCrCb.empty() == false )
-    {
-        if ( opt_verbose == true )
-        {
-            printf( "Ok.\n" );
-            fflush( stdout );
-        }
-    }
-    else
-    {
-        if ( opt_verbose == true )
-        {
-            printf( "Failure.\n" );
-            t_exit_code = -3;
-            pthread_exit( &t_exit_code );
-        }
-    }
-
-    // ------------------------------------------------------------
-
-    if ( opt_verbose == true )
-    {
-        printf( "- Resizing slitted channels with bicublic interpolation : " );
-    }
+	libsrcnn::ImgU8 	imgSrc = { w ,h ,d, (unsigned char*)refbuff };
+	libsrcnn::ImgYCbCr 	imgYCbCr;
+	
+	converImgU8toYCbCr( imgSrc, imgYCbCr );
 
     /* Resize the Y-Cr-Cb Channel with Bicubic Interpolation */
-    vector<Mat> pImg(3);
+    libsrcnn::ImgF32 imgResized[3];
+	const float* refimgbuf[3] = { imgYCbCr.Y.buff, 
+	                              imgYCbCr.Cb.buff, 
+							      imgYCbCr.Cr.buff };
 	
-    #pragma omp parallel for
-    for (int i = 0; i < 3; i++)
-    {
-		Size newsz = pImgYCrCbCh[i].size();
-		newsz.width  *= image_multiply;
-		newsz.height *= image_multiply;
+	unsigned rs_w = imgYCbCr.Y.width  * muliply;
+	unsigned rs_h = imgYCbCr.Y.height * muliply;
 		
-        resize( pImgYCrCbCh[i], 
-		        pImg[i], 
-				newsz, 
-				0, 
-				0, 
-				CV_INTER_CUBIC );
-    }
-
-    if ( opt_verbose == true )
+    #pragma omp parallel for
+    for ( unsigned cnt=0; cnt<3; cnt++ )
     {
-        printf( "Ok.\n" );
+		imgResized[cnt].width  = rs_w;
+		imgResized[cnt].height = rs_h;
+		imgResized[cnt].depth  = 1;
+
+		FRAWBicubicFilter bcfilter;
+		FRAWResizeEngine  szf( &bcfilter );
+		
+		szf.scale( refimgbuf[cnt], 
+		           imgYCbCr.Y.width,
+				   imgYCbCr.Y.height,
+				   rs_w,
+				   rs_h,
+				   &imgResized[cnt].buff );		
     }
-
-    // -----------------------------------------------------------
-    
-    if ( opt_cubicfilter == true )
-    {
-        if ( opt_verbose == true )
-        {
-            printf( "- Optional processing bicubic filter : " );
-            fflush( stdout );
-        }
-    
-        /* Output the Cubic Inter Result (Optional) */
-        Mat pImgCubic;
-	
-    	Size newsz = pImgYCrCb.size();
-    	newsz.width  *= image_multiply;
-    	newsz.height *= image_multiply;
-	
-        resize( pImgYCrCb, 
-    	        pImgCubic, 
-    			newsz,
-    			0, 
-    			0, 
-    			CV_INTER_CUBIC );
-			
-        cvtColor(pImgCubic, pImgCubic, CV_YCrCb2BGR);
-
-        if ( opt_verbose == true )
-        {
-            printf( "Ok.\n" );
-            fflush( stdout );
-        }
-    }
-
-    int cnt = 0;
 
     /******************* The First Layer *******************/
 
-    if ( opt_verbose == true )
-    {
-        printf( "- Processing convolutional layer I ... " );
-        fflush( stdout );
-    }
-
-    vector<Mat> pImgConv1(CONV1_FILTERS);
+    libsrcnn::ImgConv1Layers imgConv1;
+	
+	libsrcnn::initImgConvLayers( &imgConv1[0], 
+	                             imgResized[0].width,
+					             imgResized[0].height,
+					             CONV1_FILTERS );
+	
     #pragma omp parallel for private( cnt )
-    for ( cnt=0; cnt<CONV1_FILTERS; cnt++)
+    for ( unsigned cnt=0; cnt<CONV1_FILTERS; cnt++)
     {
-        pImgConv1[cnt].create( pImg[0].size(), CV_32F );
-
-        Convolution99( pImg[0], 
-		               pImgConv1[cnt], 
-					   weights_conv1_data[cnt], 
-					   biases_conv1[cnt] );
-    }
-
-    if ( opt_verbose == true )
-    {
-        printf( "completed.\n" );
-        fflush( stdout );
+        libsrcnn::convolution99( imgResized[0], 
+		                         imgConv1[cnt], 
+					             weights_conv1_data[cnt], 
+					             biases_conv1[cnt] );
     }
 
     /******************* The Second Layer *******************/
 
-    if ( opt_verbose == true )
-    {
-        printf( "- Processing convolutional layer II ... " );
-        fflush( stdout );
-    }
-
-    vector<Mat> pImgConv2(CONV2_FILTERS);
+    libsrcnn::ImgConv2Layers pImgConv2;
+	
+	libsrcnn::initImgConvLayers( &imgConv2[0], 
+	                             imgResized[0].width,
+					             imgResized[0].height,
+					             CONV2_FILTERS );
+	
     #pragma omp parallel for private( cnt )
-    for ( cnt=0; cnt<CONV2_FILTERS; cnt++ )
+    for ( unsigned cnt=0; cnt<CONV2_FILTERS; cnt++ )
     {
-        pImgConv2[cnt].create(pImg[0].size(), CV_32F);
-        Convolution11( pImgConv1, 
-                       pImgConv2[cnt], 
-                       weights_conv2_data[cnt], 
-                       biases_conv2[cnt]);	
-    }
-
-    if ( opt_verbose == true )
-    {
-        printf( "completed.\n" );
-        fflush( stdout );
+        libsrcnn::convolution11( imgConv1, 
+                                 imgConv2[cnt], 
+                                 weights_conv2_data[cnt], 
+                                 biases_conv2[cnt]);	
     }
 
     /******************* The Third Layer *******************/
 
-    if ( opt_verbose == true )
-    {
-        printf( "- Processing convolutional layer III ... " );
-        fflush( stdout );
-    }
-
-    Mat pImgConv3;
-    pImgConv3.create(pImg[0].size(), CV_8U);
-    Convolution55(pImgConv2, pImgConv3, weights_conv3_data, biases_conv3);
+	libsrcnn::ImgU8 imgConvRGB;
+	
+	libsrcnn::initImgU8( imgConvRGB, 
+	                     imgResized[0].width, 
+						 imgResized[0].height );
+	
+    libsrcnn::convolution55( imgConv2, imgConv3, 
+	                         weights_conv3_data, 
+				             biases_conv3 );
    
-    if ( opt_verbose == true )
-    {
-        printf( "completed.\n");
-        printf( "- Merging images : " );
-        fflush( stdout );
-    }
-
-    /* Merge the Y-Cr-Cb Channel into an image */
-    Mat pImgYCrCbOut;
-    merge(pImg, pImgYCrCbOut);
-
-	if ( opt_verbose == true )
-    {
-		printf( "Ok.\n" );
-        fflush( stdout );
-	}
-
     // ---------------------------------------------------------
 
-    if ( opt_verbose == true )
-    {
-        printf( "- Converting channel to BGR : " );
-        fflush ( stdout );
-    }
-
     /* Convert the image from YCrCb to BGR Space */
-    Mat pImgBGROut;
-    cvtColor(pImgYCrCbOut, pImgBGROut, CV_YCrCb2BGR);
-
-	if ( pImgBGROut.empty() == false )
-	{
-        if ( opt_verbose == true )
-        {
-            printf( "Ok.\n" );
-            printf( "- Writing result to %s : ", file_dst.c_str() );
-            fflush( stdout );
-        }
-
-		imwrite( file_dst.c_str() , pImgBGROut);
+    libsrcnn::ImgU8 imgRGB;
+    libsrcnn::convertImgF32x3toImgU8( imgResized, imgRGB );
 	
-        if ( opt_verbose == true )
-        {
-            printf( "Ok.\n" );
-        }
-	}
-	else
+	// discard used buffers ..
+	libsrcnn::discardConvLayers( &imgConv1, CONV1_FILTERS );
+	libsrcnn::discardConvLayers( &imgConv2, CONV2_FILTERS );
+	
+	if ( imgRGB.buff != NULL )
 	{
-		printf( "Failure.\n" );
-		t_exit_code = -10;
-        pthread_exit( &t_exit_code );
+		outbuffsz = imgRGB.width * imgRGB.height * imgRGB.depth;
+		outbuff = new unsigned char[ outbuffsz ];
+		if ( outbuff != NULL )
+		{
+			memcpy( outbuff, imgRGB.buff, outbuffsz );
+			resetImgU8( imgRGB );
+			
+			return 0;
+		}
 	}
 	
-	fflush( stdout );
-		
-    t_exit_code = 0;
-    pthread_exit( NULL );
-    return NULL;
+	return -100;
 }
 #endif /// of EXPORTLIB
