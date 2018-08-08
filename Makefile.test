@@ -41,10 +41,10 @@ CFLAGS += $(DEFS)
 CFLAGS += $(COPTS)
 
 # LINK FLAG
-LFLAGS  = -static
+LFLAGS  = 
 LFLAGS += -L$(LIB_PATH)
 LFLAGS += -L../fl_imgtk/lib
-LFLAGS += -lfl_imgtk_omp
+LFLAGS += -lfl_imgtk
 LFLAGS += $(FLTKCFG_LFG)
 LFLAGS += -lsrcnn
 LFLAGS += -lpthread
