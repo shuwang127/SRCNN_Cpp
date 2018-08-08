@@ -49,7 +49,7 @@ LFLAGS += $(FLTKCFG_LFG)
 LFLAGS += -lsrcnn
 LFLAGS += -lpthread
 
-SRC = $(SRC_PATH)/test.cpp
+SRC = $(SRC_PATH)/test.cpp $(SRC_PATH)/tick.cpp
 
 .PHONY: prepare clean
 

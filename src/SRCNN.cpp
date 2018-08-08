@@ -22,8 +22,8 @@
     #include <omp.h>
 #endif
 
-#include "rk_smimg.h"
 #include "SRCNN.h"
+#include "tick.h"
 
 /* pre-calculated convolutional data */
 #include "convdata.h"
@@ -32,7 +32,6 @@
 
 using namespace std;
 using namespace cv;
-using namespace SRCNN;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -40,7 +39,6 @@ static float    image_multiply  = 2.0f;
 static unsigned image_width     = 0;
 static unsigned image_height    = 0;
 static bool     opt_verbose     = true;
-static bool     opt_cubicfilter = true;
 static bool     opt_debug       = false;
 static int      t_exit_code     = 0;
 
@@ -51,19 +49,19 @@ static string   file_dst;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define DEF_STR_VERSION		"0.1.2.8"
+#define DEF_STR_VERSION     "0.1.3.10"
 
 ////////////////////////////////////////////////////////////////////////////////
 
 /* Function Declaration */
 void Convolution99( Mat& src, Mat& dst, \
-                    float kernel[9][9], float bias);
+                    const float kernel[9][9], float bias);
 
 void Convolution11( vector<Mat>& src, Mat& dst, \
-                    float kernel[CONV1_FILTERS], float bias);
+                    const float kernel[CONV1_FILTERS], float bias);
 
 void Convolution55( vector<Mat>& src, Mat& dst, \
-                    float kernel[32][5][5], float bias);
+                    const float kernel[32][5][5], float bias);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -76,7 +74,7 @@ void Convolution55( vector<Mat>& src, Mat& dst, \
  *        bias - the cell bias
  * Output   : <void>
 ***/
-void Convolution99(Mat& src, Mat& dst, float kernel[9][9], float bias)
+void Convolution99(Mat& src, Mat& dst, const float kernel[9][9], float bias)
 {
     /* Expand the src image */
     Mat src2;
@@ -92,26 +90,26 @@ void Convolution99(Mat& src, Mat& dst, float kernel[9][9], float bias)
 
             if (tmpRow < 0)
             {
-				tmpRow = 0;
-			}
+                tmpRow = 0;
+            }
             else 
-		    if (tmpRow >= src.rows)
+            if (tmpRow >= src.rows)
             {
-				tmpRow = src.rows - 1;
-			}
+                tmpRow = src.rows - 1;
+            }
 
             if (tmpCol < 0)
             {
-				tmpCol = 0;
-			}
+                tmpCol = 0;
+            }
             else 
-			if (tmpCol >= src.cols)
+            if (tmpCol >= src.cols)
             {
-				tmpCol = src.cols - 1;
-			}
+                tmpCol = src.cols - 1;
+            }
 
             src2.at<unsigned char>(row, col) = \
-				src.at<unsigned char>(tmpRow, tmpCol);
+                src.at<unsigned char>(tmpRow, tmpCol);
         }
     }
 
@@ -131,7 +129,7 @@ void Convolution99(Mat& src, Mat& dst, float kernel[9][9], float bias)
                     temp += kernel[i][j] * src2.at<unsigned char>(row + i, col + j);
                 }
             }
-			
+            
             temp += bias;
 
             /* Threshold */
@@ -151,7 +149,7 @@ void Convolution99(Mat& src, Mat& dst, float kernel[9][9], float bias)
  *        bias - the cell bias
  * Output   : <void>
 ***/
-void Convolution11(vector<Mat>& src, Mat& dst, float kernel[CONV1_FILTERS], float bias)
+void Convolution11(vector<Mat>& src, Mat& dst, const float kernel[CONV1_FILTERS], float bias)
 {
     for (int row = 0; row < dst.rows; row++)
     {
@@ -184,7 +182,7 @@ void Convolution11(vector<Mat>& src, Mat& dst, float kernel[CONV1_FILTERS], floa
  *        bias - the cell bias
  * Output   : <void>
 ***/
-void Convolution55(vector<Mat>& src, Mat& dst, float kernel[32][5][5], float bias)
+void Convolution55(vector<Mat>& src, Mat& dst, const float kernel[32][5][5], float bias)
 {
     /* Expand the src image */
     vector<Mat> src2(CONV2_FILTERS);
@@ -207,26 +205,26 @@ void Convolution55(vector<Mat>& src, Mat& dst, float kernel[32][5][5], float bia
 
                 if (tmpRow < 0)
                 {
-					tmpRow = 0;
-				}
+                    tmpRow = 0;
+                }
                 else 
-				if (tmpRow >= src[cnt].rows)
+                if (tmpRow >= src[cnt].rows)
                 {
-					tmpRow = src[cnt].rows - 1;
-				}
+                    tmpRow = src[cnt].rows - 1;
+                }
 
                 if (tmpCol < 0)
                 {
-					tmpCol = 0;
-				}
+                    tmpCol = 0;
+                }
                 else 
-				if (tmpCol >= src[cnt].cols)
+                if (tmpCol >= src[cnt].cols)
                 {
-					tmpCol = src[cnt].cols - 1;
-				}
+                    tmpCol = src[cnt].cols - 1;
+                }
 
                 src2[cnt].at<float>(row, col) = \
-					src[cnt].at<float>(tmpRow, tmpCol);
+                    src[cnt].at<float>(tmpRow, tmpCol);
             }
         }
     }
@@ -250,7 +248,7 @@ void Convolution55(vector<Mat>& src, Mat& dst, float kernel[32][5][5], float bia
                     for (int n = 0; n < 5; n++)
                     {
                         temppixel += \
-						kernel[i][m][n] * src2[i].at<float>(row + m, col + n);
+                        kernel[i][m][n] * src2[i].at<float>(row + m, col + n);
                     }
                 }
 
@@ -276,115 +274,109 @@ void Convolution55(vector<Mat>& src, Mat& dst, float kernel[32][5][5], float bia
 
 bool parseArgs( int argc, char** argv )
 {
-	for( int cnt=0; cnt<argc; cnt++ )
-	{
-		string strtmp = argv[ cnt ];
-		size_t fpos   = string::npos;
+    for( int cnt=0; cnt<argc; cnt++ )
+    {
+        string strtmp = argv[ cnt ];
+        size_t fpos   = string::npos;
 
-		if ( cnt == 0 )
-		{
-			fpos = strtmp.find_last_of( "\\" );
+        if ( cnt == 0 )
+        {
+            fpos = strtmp.find_last_of( "\\" );
 
-			if ( fpos == string::npos )
-			{
-				fpos = strtmp.find_last_of( "/" );
-			}
-
-			if ( fpos != string::npos )
-			{
-				path_me = strtmp.substr( 0, fpos );
-				file_me = strtmp.substr( fpos + 1 );
-			}
-			else
-			{
-				file_me = strtmp;
-			}
-		}
-		else
-		{
-			if ( strtmp.find( "--scale=" ) == 0 )
-			{ 
-				string strval = strtmp.substr( 8 );
-				if ( strval.size() > 0 )
-				{
-					float tmpfv = atof( strval.c_str() );
-					if ( tmpfv > 0.f )
-					{
-						image_multiply = tmpfv;
-					}
-				}
-			}
-			else
-			if ( strtmp.find( "--noverbose" ) == 0 )
-			{
-				opt_verbose = false;
-			}
-			else
-            if ( strtmp.find( "--nocubicfilter" ) == 0 )
+            if ( fpos == string::npos )
             {
-                opt_cubicfilter = false;
+                fpos = strtmp.find_last_of( "/" );
+            }
+
+            if ( fpos != string::npos )
+            {
+                path_me = strtmp.substr( 0, fpos );
+                file_me = strtmp.substr( fpos + 1 );
             }
             else
-			if ( file_src.size() == 0 )
-			{
-				file_src = strtmp;
-			}
-			else
-			if ( file_dst.size() == 0 )
-			{
-				file_dst = strtmp;
-			}
-		}
-	}
-	
-	if ( ( file_src.size() > 0 ) && ( file_dst.size() == 0 ) )
-	{
-		string convname = file_src;
-		string srcext;
-		
-		// changes name without file extention.
-		size_t posdot = file_src.find_last_of( "." );
-		if ( posdot != string::npos )
-		{
-			convname = file_src.substr( 0, posdot );
-			srcext   = file_src.substr( posdot );
-		}
-		
-		convname += "_resized";
-		if ( srcext.size() > 0 )
-		{
-			convname += srcext;
-		}
-		
-		file_dst = convname;
-	}
-	
-	if ( ( file_src.size() > 0 ) && ( file_dst.size() > 0 ) )
-	{
-		return true;
-	}
-	
-	return false;
+            {
+                file_me = strtmp;
+            }
+        }
+        else
+        {
+            if ( strtmp.find( "--scale=" ) == 0 )
+            { 
+                string strval = strtmp.substr( 8 );
+                if ( strval.size() > 0 )
+                {
+                    float tmpfv = atof( strval.c_str() );
+                    if ( tmpfv > 0.f )
+                    {
+                        image_multiply = tmpfv;
+                    }
+                }
+            }
+            else
+            if ( strtmp.find( "--noverbose" ) == 0 )
+            {
+                opt_verbose = false;
+            }
+            else
+            if ( file_src.size() == 0 )
+            {
+                file_src = strtmp;
+            }
+            else
+            if ( file_dst.size() == 0 )
+            {
+                file_dst = strtmp;
+            }
+        }
+    }
+    
+    if ( ( file_src.size() > 0 ) && ( file_dst.size() == 0 ) )
+    {
+        string convname = file_src;
+        string srcext;
+        
+        // changes name without file extention.
+        size_t posdot = file_src.find_last_of( "." );
+        if ( posdot != string::npos )
+        {
+            convname = file_src.substr( 0, posdot );
+            srcext   = file_src.substr( posdot );
+        }
+        
+        convname += "_resized";
+        if ( srcext.size() > 0 )
+        {
+            convname += srcext;
+        }
+        
+        file_dst = convname;
+    }
+    
+    if ( ( file_src.size() > 0 ) && ( file_dst.size() > 0 ) )
+    {
+        return true;
+    }
+    
+    return false;
 }
 
 void printTitle()
 {
-	printf( "%s : Super-Resolution with deep Convolutional Neural Networks\n",
-			file_me.c_str() );
-	printf( "(C)2018 Raphael Kim, pre-author : Wang Shu., Program version %s\n",
-			DEF_STR_VERSION );
+    printf( "%s : Super-Resolution with deep Convolutional Neural Networks\n",
+            file_me.c_str() );
+    printf( "(C)2018 Raphael Kim, pre-author : Wang Shu., Program version %s\n",
+            DEF_STR_VERSION );
 }
 
 void printHelp()
 {
-	printf( "\n" );
-	printf( "    usage : %s (options) [source file name] ([output file name])\n", file_me.c_str() );
-	printf( "\n" );
-	printf( "    _options_\n" );
-	printf( "\n" );
-	printf( "        --scale=( ratio: 0.1 to .. ) : scaling by ratio.\n" );
-	printf( "        --noverbose                  : turns off all verbose\n" );
-	printf( "        --nocubicfilter              : do not use cubic filter\n" );
+    printf( "\n" );
+    printf( "    usage : %s (options) [source file name] ([output file name])\n", file_me.c_str() );
+    printf( "\n" );
+    printf( "    _options_\n" );
+    printf( "\n" );
+    printf( "        --scale=( ratio: 0.1 to .. ) : scaling by ratio.\n" );
+    printf( "        --noverbose                  : turns off all verbose\n" );
     printf( "\n" );
 }
 
@@ -392,27 +384,27 @@ void* pthreadcall( void* p )
 {
      if ( opt_verbose == true )
     {
-    	printTitle();
-    	printf( "\n" );
-    	printf( "- Scale multiply ratio : %.2f\n", image_multiply );
-    	fflush( stdout );
+        printTitle();
+        printf( "\n" );
+        printf( "- Scale multiply ratio : %.2f\n", image_multiply );
+        fflush( stdout );
     }
-	
+    
     /* Read the original image */
     Mat pImgOrigin;
 
     pImgOrigin = imread( file_src.c_str() );
 
-	if ( pImgOrigin.empty() == false )
+    if ( pImgOrigin.empty() == false )
     {
         if ( opt_verbose == true )
         {
             printf( "- Image load : %s\n", file_src.c_str() );
             fflush( stdout );
         }
-	}
-	else
-	{
+    }
+    else
+    {
         if ( opt_verbose == true )
         {
             printf( "- load failure : %s\n", file_src.c_str() );
@@ -420,7 +412,7 @@ void* pthreadcall( void* p )
 
         t_exit_code = -1;
         pthread_exit( &t_exit_code );
-	}
+    }
 
     // Test image resize target ...
     Size testsz = pImgOrigin.size();
@@ -443,12 +435,14 @@ void* pthreadcall( void* p )
         printf( "- Image converting to Y-Cr-Cb : " );
         fflush( stdout );
     }
+	
+	unsigned perf_tick0 = tick::getTickCount();
 
     /* Convert the image from BGR to YCrCb Space */
     Mat pImgYCrCb;
     cvtColor(pImgOrigin, pImgYCrCb, CV_BGR2YCrCb);
-	
-	if ( pImgYCrCb.empty() == false )
+    
+    if ( pImgYCrCb.empty() == false )
     {
         if ( opt_verbose == true )
         {
@@ -457,15 +451,15 @@ void* pthreadcall( void* p )
         }
     }
     else
-	{
+    {
         if ( opt_verbose == true )
         {
             printf( "Failure.\n" );
         }
 
-		t_exit_code = -2;
+        t_exit_code = -2;
         pthread_exit( &t_exit_code );
-	}
+    }
 
     // ------------------------------------------------------------
 
@@ -506,20 +500,20 @@ void* pthreadcall( void* p )
 
     /* Resize the Y-Cr-Cb Channel with Bicubic Interpolation */
     vector<Mat> pImg(3);
-	
+    
     #pragma omp parallel for
     for (int i = 0; i < 3; i++)
     {
-		Size newsz = pImgYCrCbCh[i].size();
-		newsz.width  *= image_multiply;
-		newsz.height *= image_multiply;
-		
+        Size newsz = pImgYCrCbCh[i].size();
+        newsz.width  *= image_multiply;
+        newsz.height *= image_multiply;
+        
         resize( pImgYCrCbCh[i], 
-		        pImg[i], 
-				newsz, 
-				0, 
-				0, 
-				CV_INTER_CUBIC );
+                pImg[i], 
+                newsz, 
+                0, 
+                0, 
+                CV_INTER_CUBIC );
     }
 
     if ( opt_verbose == true )
@@ -527,38 +521,7 @@ void* pthreadcall( void* p )
         printf( "Ok.\n" );
     }
 
-    // -----------------------------------------------------------
-    
-    if ( opt_cubicfilter == true )
-    {
-        if ( opt_verbose == true )
-        {
-            printf( "- Optional processing bicubic filter : " );
-            fflush( stdout );
-        }
-    
-        /* Output the Cubic Inter Result (Optional) */
-        Mat pImgCubic;
-	
-    	Size newsz = pImgYCrCb.size();
-    	newsz.width  *= image_multiply;
-    	newsz.height *= image_multiply;
-	
-        resize( pImgYCrCb, 
-    	        pImgCubic, 
-    			newsz,
-    			0, 
-    			0, 
-    			CV_INTER_CUBIC );
-			
-        cvtColor(pImgCubic, pImgCubic, CV_YCrCb2BGR);
-
-        if ( opt_verbose == true )
-        {
-            printf( "Ok.\n" );
-            fflush( stdout );
-        }
-    }
+    // -----------------------------------------------------------    
 
     int cnt = 0;
 
@@ -577,9 +540,9 @@ void* pthreadcall( void* p )
         pImgConv1[cnt].create( pImg[0].size(), CV_32F );
 
         Convolution99( pImg[0], 
-		               pImgConv1[cnt], 
-					   weights_conv1_data[cnt], 
-					   biases_conv1[cnt] );
+                       pImgConv1[cnt], 
+                       weights_conv1_data[cnt], 
+                       biases_conv1[cnt] );
     }
 
     if ( opt_verbose == true )
@@ -604,7 +567,7 @@ void* pthreadcall( void* p )
         Convolution11( pImgConv1, 
                        pImgConv2[cnt], 
                        weights_conv2_data[cnt], 
-                       biases_conv2[cnt]);	
+                       biases_conv2[cnt]);  
     }
 
     if ( opt_verbose == true )
@@ -636,11 +599,11 @@ void* pthreadcall( void* p )
     Mat pImgYCrCbOut;
     merge(pImg, pImgYCrCbOut);
 
-	if ( opt_verbose == true )
+    if ( opt_verbose == true )
     {
-		printf( "Ok.\n" );
+        printf( "Ok.\n" );
         fflush( stdout );
-	}
+    }
 
     // ---------------------------------------------------------
 
@@ -653,9 +616,11 @@ void* pthreadcall( void* p )
     /* Convert the image from YCrCb to BGR Space */
     Mat pImgBGROut;
     cvtColor(pImgYCrCbOut, pImgBGROut, CV_YCrCb2BGR);
+	
+	unsigned perf_tick1 = tick::getTickCount();
 
-	if ( pImgBGROut.empty() == false )
-	{
+    if ( pImgBGROut.empty() == false )
+    {
         if ( opt_verbose == true )
         {
             printf( "Ok.\n" );
@@ -663,22 +628,31 @@ void* pthreadcall( void* p )
             fflush( stdout );
         }
 
-		imwrite( file_dst.c_str() , pImgBGROut);
-	
+        imwrite( file_dst.c_str() , pImgBGROut);
+    
         if ( opt_verbose == true )
         {
             printf( "Ok.\n" );
         }
-	}
-	else
-	{
-		printf( "Failure.\n" );
-		t_exit_code = -10;
-        pthread_exit( &t_exit_code );
-	}
-	
-	fflush( stdout );
+    }
+    else
+    {
+		if ( opt_verbose == true )
+        {
+			printf( "Failure.\n" );
+		}
 		
+        t_exit_code = -10;
+        pthread_exit( &t_exit_code );
+    }
+	
+	if ( opt_verbose == true )
+	{
+		printf( "Performace : %u ms took.\n", perf_tick1 - perf_tick0 );
+	}
+    
+    fflush( stdout );
+        
     t_exit_code = 0;
     pthread_exit( NULL );
     return NULL;
@@ -693,29 +667,19 @@ void* pthreadcall( void* p )
 ***/
 int main( int argc, char** argv )
 {
-	if ( parseArgs( argc, argv ) == false )
-	{
-		printTitle();
-		printHelp();
-		fflush( stdout );
-		return 0;
-	}
+    if ( parseArgs( argc, argv ) == false )
+    {
+        printTitle();
+        printHelp();
+        fflush( stdout );
+        return 0;
+    }
 
     pthread_t ptt;
     int       tid = 0;
 
     if ( pthread_create( &ptt, NULL, pthreadcall, &tid ) == 0 )
     {
-#if 0
-        // Adjust pthread elevation.
-        int         ptpol = 8;
-        struct \
-        sched_param ptpar = {0};
-
-        pthread_getschedparam( ptt, &ptpol, &ptpar );
-        ptpar.sched_priority = sched_get_priority_max( ptpol );
-        pthread_setschedparam( ptt, ptpol, &ptpar );
-#endif 
         // Wait for thread ends ..
         pthread_join( ptt, NULL );
     }
@@ -723,7 +687,7 @@ int main( int argc, char** argv )
     {
         printf( "Error: pthread failure.\n" );
     }
-	
+    
     return t_exit_code;
 }
 #endif /// of EXPORTLIB

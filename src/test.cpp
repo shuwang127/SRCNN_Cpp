@@ -24,46 +24,7 @@
 
 #include "libsrcnn.h"
 #include "fl_imgtk.h"
-
-#ifndef _WIN32
-
-namespace
-{
-	class __GET_TICK_COUNT
-	{
-		public:
-			__GET_TICK_COUNT()
-			{
-				if (gettimeofday(&tv_, NULL) != 0)
-					throw 0;
-			}
-
-			timeval tv_;
-	};
-
-	__GET_TICK_COUNT timeStart;
-}
-
-unsigned long GetTickCount()
-{
-	static time_t	secStart	= timeStart.tv_.tv_sec;
-	static time_t	usecStart	= timeStart.tv_.tv_usec;
-								
-	timeval tv;
-	gettimeofday(&tv, NULL);
-	
-	return (tv.tv_sec - secStart) * 1000 + (tv.tv_usec - usecStart) / 1000;
-}
-
-unsigned long GetTickCount2()
-{
-	timeval tv;
-	gettimeofday(&tv, NULL);
-	
-	return (unsigned long)(tv.tv_sec * 1000 + tv.tv_usec / 1000);
-}
-
-#endif /// of _WIN32
+#include "tick.h"
 
 bool convImage( Fl_RGB_Image* src, Fl_RGB_Image* &dst )
 {
@@ -373,7 +334,7 @@ int main( int argc, char** argv )
 			printf( "- Processing SRCNN ... " );
 			fflush( stdout );
 			
-			unsigned     tick0 = GetTickCount();
+			unsigned     tick0 = tick::getTickCount();
 			
 			int reti = ProcessSRCNN( refbuff,
 			                         ref_w,
@@ -383,7 +344,7 @@ int main( int argc, char** argv )
 					 				 outbuff,
 									 outsz );
 			
-			unsigned     tick1 = GetTickCount();
+			unsigned     tick1 = tick::getTickCount();
 			
 			if ( ( reti == 0 ) && ( outsz > 0 ) )
 			{
@@ -417,6 +378,12 @@ int main( int argc, char** argv )
 		printf( "Failed to load bitmap.\n" );
 	}
 
+	// let check memory leak before program terminated.
+	printf( "- Input any number and press ENTER to terminate, check memory state.\n" );
+	fflush( stdout );
+	unsigned meaningless = 0;
+	scanf( "%d", &meaningless );
+	
 	return 0;
 }
 
