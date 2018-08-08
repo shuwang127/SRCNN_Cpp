@@ -4,6 +4,7 @@
 ** Current Author : Raphael Kim ( rageworx@gmail.com )
 *******************************************************************************/
 #ifdef EXPORTLIB
+
 ////////////////////////////////////////////////////////////////////////////////
 #include <cstdio>
 #include <cstdlib>
@@ -62,9 +63,9 @@ static bool opt_cubicfilter = true;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void convolution99( ImgF32 &src, ImgF32 &dst, KernelMat99 kernel, float bias );
-void convolution11( ImgConv1Layers &src, ImgYCbCr &dst, ConvKernel1 kernel, float bias );
-void convolution55( ImgConv2Layers &src, ImgU8 &dst, ConvKernel32_55 kernel, float bias );
+void convolution99( ImgF32 &src, ImgF32 &dst, const KernelMat99 kernel, float bias );
+void convolution11( ImgConv1Layers &src, ImgYCbCr &dst, const ConvKernel1 kernel, float bias );
+void convolution55( ImgConv2Layers &src, ImgU8 &dst, const ConvKernel32_55 kernel, float bias );
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -161,8 +162,6 @@ void initImgYCbCr( ImgYCbCr &img, unsigned w, unsigned h )
 	initImgF32( img.Cr, w, h );
 }
 
-// RGB->YCbCr refered to 
-// http://atrahasis.tistory.com/entry/YCbCr-%EA%B3%BC-RGB-%EA%B0%84%EC%9D%98-%EC%83%81%ED%98%B8%EB%B3%80%ED%99%98-%EA%B3%B5%EC%8B%9D%EC%9D%98-%EC%9D%BC%EB%B0%98%ED%99%94%EB%90%9C-%ED%91%9C%EC%A4%80%EA%B3%B5%EC%8B%9D-%EC%A0%95%EB%A6%AC
 void converImgU8toYCbCr( ImgU8 &src, ImgYCbCr &out )
 {
 	if ( src.depth < 3 )
@@ -174,15 +173,15 @@ void converImgU8toYCbCr( ImgU8 &src, ImgYCbCr &out )
 	
 	for( unsigned cnt=0; cnt<imgsz; cnt++ )
 	{
-		float fR = src.buff[ ( cnt + 0 ) * src.depth ];
-		float fG = src.buff[ ( cnt + 1 ) * src.depth ];
-		float fB = src.buff[ ( cnt + 2 ) * src.depth ];
+		float fR = src.buff[ ( cnt * src.depth ) + 0 ];
+		float fG = src.buff[ ( cnt * src.depth ) + 1 ];
+		float fB = src.buff[ ( cnt * src.depth ) + 2 ];
 		
 		// Y
 		out.Y.buff[cnt] = ( 0.299f * fR ) + ( 0.587f * fG ) + ( 0.114f * fB );
 		
 		// Cb
-		out.Cb.buff[cnt] = ( -0.16874f * fR ) - ( 0.33126f * ( 0.5f * fB ) );
+		out.Cb.buff[cnt] = ( -0.16874f * fR ) - ( 0.33126f * fG ) + ( 0.5f * fB );
 
 		// Cr
 		out.Cr.buff[cnt] = ( 0.5f * fR ) - ( 0.41869f * fG ) - ( 0.08131f * fB );
@@ -208,11 +207,11 @@ void convertImgF32x3toImgU8( ImgF32* src, ImgU8 &out )
 		float fCr = src[2].buff[cnt];
 
 		// Red -> Green -> Blue ...
-		out.buff[( cnt + 0 ) * 3] = \
+		out.buff[( cnt * 3 ) + 0] = \
 				(unsigned char)(fY + ( 1.402f * fCr ));
-		out.buff[( cnt + 1 ) * 3] = \
+		out.buff[( cnt * 3 ) + 1] = \
 				(unsigned char)(fY - ( 0.34414f * fCb ) - ( 0.71414 * fCr ));
-		out.buff[( cnt + 2 ) * 3] = \
+		out.buff[( cnt * 3 ) + 2] = \
 				(unsigned char)(fY + ( 1.772 * fCb ));
 	}
 }
@@ -241,34 +240,35 @@ void convertYCbCrtoImgU8( ImgYCbCr &src, ImgU8* &out )
 		float fCr = src.Cr.buff[cnt];
 
 		// Red -> Green -> Blue ...
-		out->buff[( cnt + 0 ) * 3] = \
+		out->buff[( cnt * 3 ) + 0] = \
 				(unsigned char)(fY + ( 1.402f * fCr ));
-		out->buff[( cnt + 1 ) * 3] = \
+		out->buff[( cnt * 3 ) + 1] = \
 				(unsigned char)(fY - ( 0.34414f * fCb ) - ( 0.71414 * fCr ));
-		out->buff[( cnt + 2 ) * 3] = \
+		out->buff[( cnt * 3 ) + 2] = \
 				(unsigned char)(fY + ( 1.772 * fCb ));
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void convolution99( ImgF32 &src, ImgF32 &dst, KernelMat99 kernel, float bias )
+void convolution99( ImgF32 &src, ImgF32 &dst, const KernelMat99 kernel, float bias )
 {
     /* Expand the src image */
-	initImgF32( dst, src.width + 8, src.height + 8 );
+	ImgF32 src2;
+	initImgF32( src2, src.width + 8, src.height + 8 );
 	
-	if ( dst.buff == NULL )
+	if ( src2.buff == NULL )
 	{
-		resetImgF32( dst );
+		resetImgF32( src2 );
 		return;
 	}
 	
 	unsigned row = 0;
 	
     #pragma omp parallel for private(row)
-    for ( row = 0; row<dst.height; row++ )
+    for ( row = 0; row<src2.height; row++ )
     {
-        for ( unsigned col = 0; col<dst.width; col++ )
+        for ( unsigned col = 0; col<src2.width; col++ )
         {
             int tmpRow = (int)row - 4;
             int tmpCol = (int)col - 4;
@@ -293,16 +293,16 @@ void convolution99( ImgF32 &src, ImgF32 &dst, KernelMat99 kernel, float bias )
 				tmpCol = src.width - 1;
 			}
 
-			dst.buff[ row * dst.width + col ] = \
+			src2.buff[ row * dst.width + col ] = \
 								src.buff[ tmpRow * src.width + tmpCol ];
         }
     }
 
     /* Complete the Convolution Step */
 	#pragma omp parallel for private(row)
-    for ( row = 0; row < dst.height; row++ )
+    for ( row=0; row<dst.height; row++ )
     {
-        for ( unsigned col = 0; col < dst.width; col++ )
+        for ( unsigned col=0; col<dst.width; col++ )
         {
             /* Convolution */
             float temp = 0;
@@ -311,9 +311,9 @@ void convolution99( ImgF32 &src, ImgF32 &dst, KernelMat99 kernel, float bias )
 			{
 				for ( unsigned y=0; y<9; y++ )
 				{
-					unsigned pos = ( row  + x ) * dst.width + ( col + y );
+					unsigned pos = ( row  + x ) * src2.width + ( col + y );
 	
-					temp += kernel[x][y] * dst.buff[pos];						
+					temp += kernel[x][y] * src2.buff[pos];						
 				}
 			}
 			
@@ -325,9 +325,11 @@ void convolution99( ImgF32 &src, ImgF32 &dst, KernelMat99 kernel, float bias )
 			dst.buff[ row * dst.width + col ] = temp;
         }
     }
+	
+	delete[] src2.buff;
 }
 
-void convolution11( ImgConv1Layers &src, ImgF32 &dst, ConvKernel1 kernel, float bias )
+void convolution11( ImgConv1Layers &src, ImgF32 &dst, const ConvKernel1 kernel, float bias )
 {
 	//#pragma omp parallel for
 	for ( unsigned row=0; row<dst.height; row++ )
@@ -353,12 +355,13 @@ void convolution11( ImgConv1Layers &src, ImgF32 &dst, ConvKernel1 kernel, float 
 	}
 }
 
-void convolution55( ImgConv2Layers &src, ImgU8 &dst, ConvKernel32_55 kernel, float bias )
+void convolution55( ImgConv2Layers &src, ImgU8 &dst, const ConvKernel32_55 kernel, float bias )
 {
     /* Expand the src image */
 	ImgConv2Layers src2;
 	initImgConvLayers( &src2[0], 
-	                   src[0].width, src[0].height, 
+	                   src[0].width + 4, 
+					   src[0].height + 4, 
 					   CONV2_FILTERS );
 
     unsigned cnt = 0;
@@ -366,9 +369,9 @@ void convolution55( ImgConv2Layers &src, ImgU8 &dst, ConvKernel32_55 kernel, flo
     #pragma omp parallel for private(cnt)
     for ( cnt=0; cnt<CONV2_FILTERS; cnt++ )
     {
-        for ( unsigned row = 0; row < src2[cnt].height; row++ )
+        for ( unsigned row=0; row<src2[cnt].height; row++ )
         {
-            for ( unsigned col = 0; col < src2[cnt].width; col++ )
+            for ( unsigned col=0; col<src2[cnt].width; col++ )
             {
                 int tmpRow = (int)row - 2;
                 int tmpCol = (int)col - 2;
@@ -394,11 +397,11 @@ void convolution55( ImgConv2Layers &src, ImgU8 &dst, ConvKernel32_55 kernel, flo
 				}
 
                 src2[cnt].buff[ row * src2[cnt].width + col ] = \
-						src[cnt].buff[ tmpRow * src[cnt].width + tmpCol];
+						src[cnt].buff[ tmpRow * src[cnt].width + tmpCol ];
             }
         }
     }
-
+	
     int row = 0;
 
     /* Complete the Convolution Step */
@@ -406,20 +409,20 @@ void convolution55( ImgConv2Layers &src, ImgU8 &dst, ConvKernel32_55 kernel, flo
     for ( row=0; row<dst.height; row++ )
     {
         #pragma omp parallel for
-        for ( unsigned col = 0; col < dst.width; col++)
+        for ( unsigned col=0; col<dst.width; col++ )
         {
             float temp = 0;
 
-            for ( unsigned i = 0; i < CONV2_FILTERS; i++)
+            for ( unsigned i=0; i<CONV2_FILTERS; i++ )
             {
                 double temppixel = 0;
 				
-                for ( unsigned m = 0; m < 5; m++ )
+                for ( unsigned y=0; y<5; y++ )
                 {
-                    for ( unsigned n = 0; n < 5; n++ )
+                    for ( unsigned x=0; x<5; x++ )
                     {
-						unsigned pos = ( row + m ) * src2[i].width + ( col + n );
-                        temppixel += kernel[i][m][n] * src2[i].buff[ pos ];
+						unsigned pos = (row + y) * src2[i].width + (col + x);
+                        temppixel += kernel[i][x][y] * src2[i].buff[pos];
                     }
                 }
 
@@ -435,7 +438,7 @@ void convolution55( ImgConv2Layers &src, ImgU8 &dst, ConvKernel32_55 kernel, flo
             dst.buff[ row * dst.width + col ] = (unsigned char)temp;
         }
     }
-
+	
 	discardConvLayers( &src2[0], CONV2_FILTERS );	
 }
 
@@ -445,11 +448,11 @@ void convolution55( ImgConv2Layers &src, ImgU8 &dst, ConvKernel32_55 kernel, flo
 
 ////////////////////////////////////////////////////////////////////////////////
 
-int ProcessSRNN( const unsigned char* refbuff, 
-                 unsigned w, unsigned h, unsigned d,
-                 float muliply,
-                 unsigned char* &outbuff,
-                 unsigned &outbuffsz )
+int ProcessSRCNN( const unsigned char* refbuff, 
+                  unsigned w, unsigned h, unsigned d,
+                  float muliply,
+                  unsigned char* &outbuff,
+                  unsigned &outbuffsz )
 {
 	if ( ( refbuff == NULL ) || ( w == 0 ) || ( h == 0 ) || ( d == 0 ) )
 		return -1;
@@ -467,7 +470,7 @@ int ProcessSRNN( const unsigned char* refbuff,
 	libsrcnn::ImgYCbCr 	imgYCbCr;
 	
 	converImgU8toYCbCr( imgSrc, imgYCbCr );
-
+	
     /* Resize the Y-Cr-Cb Channel with Bicubic Interpolation */
     libsrcnn::ImgF32 imgResized[3];
 	const float* refimgbuf[3] = { imgYCbCr.Y.buff, 
@@ -483,16 +486,17 @@ int ProcessSRNN( const unsigned char* refbuff,
 		imgResized[cnt].width  = rs_w;
 		imgResized[cnt].height = rs_h;
 		imgResized[cnt].depth  = 1;
+		imgResized[cnt].buff   = NULL;
 
 		FRAWBicubicFilter bcfilter;
 		FRAWResizeEngine  szf( &bcfilter );
-		
+			
 		szf.scale( refimgbuf[cnt], 
 		           imgYCbCr.Y.width,
 				   imgYCbCr.Y.height,
 				   rs_w,
 				   rs_h,
-				   &imgResized[cnt].buff );		
+				   &imgResized[cnt].buff );
     }
 
     /******************* The First Layer *******************/
@@ -503,8 +507,8 @@ int ProcessSRNN( const unsigned char* refbuff,
 	                             imgResized[0].width,
 					             imgResized[0].height,
 					             CONV1_FILTERS );
-	
-    #pragma omp parallel for private( cnt )
+		
+    #pragma omp parallel for
     for ( unsigned cnt=0; cnt<CONV1_FILTERS; cnt++)
     {
         libsrcnn::convolution99( imgResized[0], 
@@ -515,14 +519,14 @@ int ProcessSRNN( const unsigned char* refbuff,
 
     /******************* The Second Layer *******************/
 
-    libsrcnn::ImgConv2Layers pImgConv2;
+    libsrcnn::ImgConv2Layers imgConv2;
 	
 	libsrcnn::initImgConvLayers( &imgConv2[0], 
 	                             imgResized[0].width,
 					             imgResized[0].height,
 					             CONV2_FILTERS );
 	
-    #pragma omp parallel for private( cnt )
+    #pragma omp parallel for
     for ( unsigned cnt=0; cnt<CONV2_FILTERS; cnt++ )
     {
         libsrcnn::convolution11( imgConv1, 
@@ -530,19 +534,19 @@ int ProcessSRNN( const unsigned char* refbuff,
                                  weights_conv2_data[cnt], 
                                  biases_conv2[cnt]);	
     }
-
+	
     /******************* The Third Layer *******************/
 
-	libsrcnn::ImgU8 imgConvRGB;
-	
-	libsrcnn::initImgU8( imgConvRGB, 
+	libsrcnn::ImgU8 imgConv3;
+		
+	libsrcnn::initImgU8( imgConv3, 
 	                     imgResized[0].width, 
 						 imgResized[0].height );
 	
     libsrcnn::convolution55( imgConv2, imgConv3, 
 	                         weights_conv3_data, 
 				             biases_conv3 );
-   
+							    
     // ---------------------------------------------------------
 
     /* Convert the image from YCrCb to BGR Space */
@@ -550,8 +554,8 @@ int ProcessSRNN( const unsigned char* refbuff,
     libsrcnn::convertImgF32x3toImgU8( imgResized, imgRGB );
 	
 	// discard used buffers ..
-	libsrcnn::discardConvLayers( &imgConv1, CONV1_FILTERS );
-	libsrcnn::discardConvLayers( &imgConv2, CONV2_FILTERS );
+	libsrcnn::discardConvLayers( &imgConv1[0], CONV1_FILTERS );
+	libsrcnn::discardConvLayers( &imgConv2[0], CONV2_FILTERS );
 	
 	if ( imgRGB.buff != NULL )
 	{

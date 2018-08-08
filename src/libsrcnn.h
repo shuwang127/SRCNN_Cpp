@@ -3,11 +3,11 @@
 
 #ifdef EXPORTLIB
 
-int ProcessSRNN( const unsigned char* refbuff, 
-                 unsigned w, unsigned h, unsigned d,
-                 float muliply,
-                 unsigned char* &outbuff,
-                 unsigned &outbuffsz );
+int ProcessSRCNN( const unsigned char* refbuff, 
+                  unsigned w, unsigned h, unsigned d,
+                  float muliply,
+                  unsigned char* &outbuff,
+                  unsigned &outbuffsz );
 
 #endif /// of EXPORTLIB
 
