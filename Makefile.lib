@@ -26,7 +26,6 @@ all: prepare $(BIN_PATH)/$(TARGET)
 prepare:
 	@mkdir -p $(OBJ_PATH)
 	@mkdir -p $(BIN_PATH)
-	@echo $(SRCS)
 
 clean:
 	@rm -rf $(OBJ_PATH)/*.o
