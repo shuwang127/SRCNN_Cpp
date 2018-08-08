@@ -43,4 +43,3 @@ $(OBJS): $(OBJ_PATH)/%.o: $(SRC_PATH)/%.cpp
 $(BIN_PATH)/$(TARGET): $(OBJS)
 	@echo "Linking $@ ..."
 	@$(CXX) $(OBJ_PATH)/*.o $(CFLAGS) $(LFLAGS) -o $@
-

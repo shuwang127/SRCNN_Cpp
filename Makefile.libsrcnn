@@ -30,6 +30,7 @@ prepare:
 clean:
 	@rm -rf $(OBJ_PATH)/*.o
 	@rm -rf $(BIN_PATH)/$(TARGET)
+	@rm -rf $(BIN_PATH)/*.h
 
 $(OBJS): $(OBJ_PATH)/%.o: $(SRC_PATH)/%.cpp
 	@echo "Compiling $< ..."

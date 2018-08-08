@@ -263,6 +263,8 @@ bool savetocolorpng( Fl_RGB_Image* imgcached, const char* fpath )
             }
         }
     }
+
+    return false;
 }
 
 

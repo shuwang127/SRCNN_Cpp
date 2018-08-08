@@ -2,12 +2,8 @@
 # Written by Raph.K.
 #
 
-# Compiler preset.
-CC_PREFIX = $(PREFIX)
-CC_PATH =
-
-GCC = $(CC_PATH)$(CC_PREFIX)gcc
-GPP = $(CC_PATH)$(CC_PREFIX)g++
+GCC = gcc
+GPP = g++
 AR  = ar
 FCG = fltk-config --use-images
 
@@ -41,15 +37,15 @@ CFLAGS += $(DEFS)
 CFLAGS += $(COPTS)
 
 # LINK FLAG
-LFLAGS  = 
-LFLAGS += -L$(LIB_PATH)
+LFLAGS  = -L$(LIB_PATH)
 LFLAGS += -L../fl_imgtk/lib
-LFLAGS += -lfl_imgtk
-LFLAGS += $(FLTKCFG_LFG)
 LFLAGS += -lsrcnn
 LFLAGS += -lpthread
+LFLAGS += -lfl_imgtk
+LFLAGS += $(FLTKCFG_LFG)
 
-SRC = $(SRC_PATH)/test.cpp $(SRC_PATH)/tick.cpp
+SRCS = $(SRC_PATH)/test.cpp $(SRC_PATH)/tick.cpp
+OBJS = $(SRCS:$(SRC_PATH)/%.cpp=$(TARGET_OBJ)/%.o)
 
 .PHONY: prepare clean
 
@@ -68,7 +64,11 @@ clean:
 	@rm -rf $(TARGET_INC)/*.h
 	@rm -rf $(TARGET_OBJ)/*.o
 
+$(OBJS): $(TARGET_OBJ)/%.o: $(SRC_PATH)/%.cpp
+	@echo "Compiling $< ..."
+	@$(GPP) $(CFLAGS) -c $< -o $@
+
 $(TARGET_DIR)/$(TARGET_PKG): $(OBJS)
-	@echo "Compiling $@ ..."
-	@$(GPP) $(SRC) $(CFLAGS) $(LFLAGS) -o $@
+	@echo "Linking $@ ..."
+	$(GPP) $(TARGET_OBJ)/*.o $(CFLAGS) $(LFLAGS) -o $@
 	@echo "done."
