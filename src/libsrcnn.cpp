@@ -11,8 +11,11 @@
 **     First C++ code ( non-OpenCV ) code released.
 **     Tested with MinGW-W64 and G++ @ AARCH64 ( nVidia Jetson TX2 )
 **
+** - 2018-08-09 -
+**     Enhanced & Fixed codes to best performance for OpenMP.
+**
 *******************************************************************************/
-#ifdef EXPORTLIB
+#ifdef EXPORTLIBSRCNN
 
 ////////////////////////////////////////////////////////////////////////////////
 #include <cstdio>
@@ -180,6 +183,7 @@ void converImgU8toYCbCr( ImgU8 &src, ImgYCbCr &out )
     
     unsigned imgsz = src.width * src.height;
     
+    #pragma omp parallel for
     for( unsigned cnt=0; cnt<imgsz; cnt++ )
     {
         float fR = src.buff[ ( cnt * src.depth ) + 0 ];
@@ -209,6 +213,7 @@ void convertImgF32x3toImgU8( ImgF32* src, ImgU8 &out )
     out.depth  = 3;
     out.buff   = new unsigned char[ imgsz * 3 ];        
         
+    #pragma omp parallel for
     for( unsigned cnt=0; cnt<imgsz; cnt++ )
     {
         float fY  = src[0].buff[cnt];
@@ -242,6 +247,7 @@ void convertYCbCrtoImgU8( ImgYCbCr &src, ImgU8* &out )
     if ( out->buff == NULL )
         return;
     
+    #pragma omp parallel for
     for( unsigned cnt=0; cnt<imgsz; cnt++ )
     {
         float fY  = src.Y.buff[cnt];
@@ -272,10 +278,7 @@ void convolution99( ImgF32 &src, ImgF32 &dst, const KernelMat99 kernel, float bi
         return;
     }
     
-    unsigned row = 0;
-    
-    #pragma omp parallel for private(row)
-    for ( row = 0; row<src2.height; row++ )
+    for ( unsigned row = 0; row<src2.height; row++ )
     {
         for ( unsigned col = 0; col<src2.width; col++ )
         {
@@ -308,8 +311,7 @@ void convolution99( ImgF32 &src, ImgF32 &dst, const KernelMat99 kernel, float bi
     }
 
     /* Complete the Convolution Step */
-    #pragma omp parallel for private(row)
-    for ( row=0; row<dst.height; row++ )
+    for ( unsigned row=0; row<dst.height; row++ )
     {
         for ( unsigned col=0; col<dst.width; col++ )
         {
@@ -348,7 +350,6 @@ void convolution11( ImgConv1Layers &src, ImgF32 &dst, const ConvKernel1 kernel, 
             /* Process with each pixel */
             float temp = 0;
 
-            #pragma omp parallel for
             for ( unsigned fc=0; fc<CONV1_FILTERS; fc++ )
             {
                 temp += src[fc].buff[ row * src[fc].width + col ] * kernel[fc];                     
@@ -373,10 +374,8 @@ void convolution55( ImgConv2Layers &src, ImgU8 &dst, const ConvKernel32_55 kerne
                        src[0].height + 4, 
                        CONV2_FILTERS );
 
-    unsigned cnt = 0;
-
-    #pragma omp parallel for private(cnt)
-    for ( cnt=0; cnt<CONV2_FILTERS; cnt++ )
+    #pragma omp parallel for
+    for ( unsigned cnt=0; cnt<CONV2_FILTERS; cnt++ )
     {
         for ( unsigned row=0; row<src2[cnt].height; row++ )
         {
@@ -411,13 +410,10 @@ void convolution55( ImgConv2Layers &src, ImgU8 &dst, const ConvKernel32_55 kerne
         }
     }
     
-    int row = 0;
-
     /* Complete the Convolution Step */
-    #pragma omp parallel for private( row )
-    for ( row=0; row<dst.height; row++ )
+    #pragma omp parallel for
+    for ( unsigned row=0; row<dst.height; row++ )
     {
-        #pragma omp parallel for
         for ( unsigned col=0; col<dst.width; col++ )
         {
             float temp = 0;
@@ -588,4 +584,4 @@ int ProcessSRCNN( const unsigned char* refbuff,
     
     return -100;
 }
-#endif /// of EXPORTLIB
+#endif /// of EXPORTLIBSRCNN

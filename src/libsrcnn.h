@@ -1,7 +1,7 @@
 #ifndef __LIBSRCNN_H__
 #define __LIBSRCNN_H__
 
-#ifdef EXPORTLIB
+#ifdef EXPORTLIBSRCNN
 
 int ProcessSRCNN( const unsigned char* refbuff, 
                   unsigned w, unsigned h, unsigned d,
@@ -9,6 +9,6 @@ int ProcessSRCNN( const unsigned char* refbuff,
                   unsigned char* &outbuff,
                   unsigned &outbuffsz );
 
-#endif /// of EXPORTLIB
+#endif /// of EXPORTLIBSRCNN
 
 #endif /// of __SRCNN_H__

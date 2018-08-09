@@ -16,7 +16,6 @@ This is an open source project from original of this:
  - And thank you very much for Chao's work in SRCNN.
 
 ### What changed ?
-1. Will support FLTK GUI
 1. Code modified many things from original.
 1. OpenMP parallel looping, improved performance.
 1. Supports almost of platform - POSIX compatibled.

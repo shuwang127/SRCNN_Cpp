@@ -2,13 +2,14 @@
  * SRCNN: Super-Resolution with deep Convolutional Neural Networks
  * ----------------------------------------------------------------------------
  * Current Author : Raphael Kim ( rageworx@gmail.com )
+ * Latest update  : 2018-08-09
  * Pre-Author     : Wang Shu
  * Origin-Date    @ Sun 13 Sep, 2015
  * Descriptin ..
  *                 This source code modified version from Origianl code of Wang
  *                Shu's. All license following from origin.
 *******************************************************************************/
-#ifndef EXPORTLIB
+#ifndef EXPORTLIBSRCNN
 
 ////////////////////////////////////////////////////////////////////////////////
 #include <cstdio>
@@ -49,7 +50,7 @@ static string   file_dst;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define DEF_STR_VERSION     "0.1.3.10"
+#define DEF_STR_VERSION     "0.1.4.15"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -80,7 +81,6 @@ void Convolution99(Mat& src, Mat& dst, const float kernel[9][9], float bias)
     Mat src2;
     src2.create(Size(src.cols + 8, src.rows + 8), CV_8U);
     
-    #pragma omp parallel for
     for (int row = 0; row < src2.rows; row++)
     {
         for (int col = 0; col < src2.cols; col++)
@@ -121,7 +121,6 @@ void Convolution99(Mat& src, Mat& dst, const float kernel[9][9], float bias)
             /* Convolution */
             float temp = 0;
 
-            #pragma omp parallel for
             for (int i = 0; i < 9; i++)
             {
                 for (int j = 0; j < 9; j++)
@@ -158,7 +157,6 @@ void Convolution11(vector<Mat>& src, Mat& dst, const float kernel[CONV1_FILTERS]
             /* Process with each pixel */
             float temp = 0;
 
-            #pragma omp parallel for
             for (int i = 0; i < CONV1_FILTERS; i++)
             {
                 temp += src[i].at<float>(row, col) * kernel[i];
@@ -187,10 +185,8 @@ void Convolution55(vector<Mat>& src, Mat& dst, const float kernel[32][5][5], flo
     /* Expand the src image */
     vector<Mat> src2(CONV2_FILTERS);
 
-    int cnt = 0;
-
-    #pragma omp parallel for private(cnt)
-    for ( cnt=0; cnt<CONV2_FILTERS; cnt++)
+    #pragma omp parallel for
+    for ( unsigned cnt=0; cnt<CONV2_FILTERS; cnt++)
     {
         src2[cnt].create( Size( src[cnt].cols + 4, 
                                 src[cnt].rows + 4 ), 
@@ -229,13 +225,10 @@ void Convolution55(vector<Mat>& src, Mat& dst, const float kernel[32][5][5], flo
         }
     }
 
-    int row = 0;
-
     /* Complete the Convolution Step */
-    #pragma omp parallel for private( row )
-    for ( row=0; row<dst.rows; row++ )
+    #pragma omp parallel for
+    for ( int row=0; row<dst.rows; row++ )
     {
-        #pragma omp parallel for
         for (int col = 0; col < dst.cols; col++)
         {
             float temp = 0;
@@ -534,8 +527,8 @@ void* pthreadcall( void* p )
     }
 
     vector<Mat> pImgConv1(CONV1_FILTERS);
-    #pragma omp parallel for private( cnt )
-    for ( cnt=0; cnt<CONV1_FILTERS; cnt++)
+    #pragma omp parallel for
+    for ( unsigned cnt=0; cnt<CONV1_FILTERS; cnt++)
     {
         pImgConv1[cnt].create( pImg[0].size(), CV_32F );
 
@@ -560,8 +553,8 @@ void* pthreadcall( void* p )
     }
 
     vector<Mat> pImgConv2(CONV2_FILTERS);
-    #pragma omp parallel for private( cnt )
-    for ( cnt=0; cnt<CONV2_FILTERS; cnt++ )
+    #pragma omp parallel for
+    for ( unsigned cnt=0; cnt<CONV2_FILTERS; cnt++ )
     {
         pImgConv2[cnt].create(pImg[0].size(), CV_32F);
         Convolution11( pImgConv1, 
@@ -648,7 +641,7 @@ void* pthreadcall( void* p )
 	
 	if ( opt_verbose == true )
 	{
-		printf( "Performace : %u ms took.\n", perf_tick1 - perf_tick0 );
+		printf( "- Performace : %u ms took.\n", perf_tick1 - perf_tick0 );
 	}
     
     fflush( stdout );
@@ -690,4 +683,4 @@ int main( int argc, char** argv )
     
     return t_exit_code;
 }
-#endif /// of EXPORTLIB
+#endif /// of EXPORTLIBSRCNN
