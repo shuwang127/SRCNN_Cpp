@@ -13,7 +13,7 @@ TARGET   = libsrcnn.a
 SRCS = $(wildcard $(SRC_PATH)/*.cpp)
 OBJS = $(SRCS:$(SRC_PATH)/%.cpp=$(OBJ_PATH)/%.o)
 
-CFLAGS  = -DEXPORTLIB
+CFLAGS  = -DEXPORTLIBSRCNN
 CFLAGS += -mtune=native
 CFLAGS += -ffast-math
 CFLAGS += -fopenmp
