@@ -17,10 +17,14 @@
 #include <FL/Fl_Image.H>
 #include <FL/Fl_RGB_Image.H>
 #include <FL/Fl_BMP_Image.H>
-#include <Fl/Fl_PNG_Image.H>
-#include <Fl/Fl_JPEG_Image.H>
+#include <FL/Fl_PNG_Image.H>
+#include <FL/Fl_JPEG_Image.H>
 
+#if defined(__linux__)
+#include <png.h>
+#else
 #include <FL/images/png.h>
+#endif
 
 #include "libsrcnn.h"
 #include "fl_imgtk.h"
