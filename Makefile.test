@@ -70,5 +70,5 @@ $(OBJS): $(TARGET_OBJ)/%.o: $(SRC_PATH)/%.cpp
 
 $(TARGET_DIR)/$(TARGET_PKG): $(OBJS)
 	@echo "Linking $@ ..."
-	$(GPP) $(TARGET_OBJ)/*.o $(CFLAGS) $(LFLAGS) -o $@
+	@$(GPP) $(TARGET_OBJ)/*.o $(CFLAGS) $(LFLAGS) -o $@
 	@echo "done."

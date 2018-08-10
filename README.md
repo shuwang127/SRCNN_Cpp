@@ -2,9 +2,9 @@
 This project was forked from https://github.com/shuwang127/SRCNN_Cpp, An Open source project of **"C++ Implementation of Super-Resolution resizing with Convolutional Neural Network"**.
 And this project includes non-OpenCV library name called as ...
 
-# libsrcnn
-libsrcnn is a stand-alone library that no dependancy with OpenCV.
-It was move to https://github.com/rageworx/libsrcnn.
+## non-openCV model, libsrcnn
+* **libsrcnn** is a stand-alone library that no dependancy with OpenCV.
+* it it more 4 times faster than OpenCV model, but currently it moved to [libsrcnn](https://github.com/rageworx/libsrcnn) repository.
 
 ### Introduction
 This is an open source project from original of this:
