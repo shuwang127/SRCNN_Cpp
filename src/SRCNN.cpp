@@ -488,7 +488,7 @@ void* pthreadcall( void* p )
 
     if ( opt_verbose == true )
     {
-        printf( "- Resizing slitted channels with bicublic interpolation : " );
+        printf( "- Resizing splitted channels with bicublic interpolation : " );
     }
 
     /* Resize the Y-Cr-Cb Channel with Bicubic Interpolation */
