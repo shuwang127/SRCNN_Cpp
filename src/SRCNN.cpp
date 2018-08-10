@@ -2,7 +2,7 @@
  * SRCNN: Super-Resolution with deep Convolutional Neural Networks
  * ----------------------------------------------------------------------------
  * Current Author : Raphael Kim ( rageworx@gmail.com )
- * Latest update  : 2018-08-09
+ * Latest update  : 2018-08-10
  * Pre-Author     : Wang Shu
  * Origin-Date    @ Sun 13 Sep, 2015
  * Descriptin ..
@@ -50,7 +50,7 @@ static string   file_dst;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define DEF_STR_VERSION     "0.1.4.15"
+#define DEF_STR_VERSION     "0.1.4.16"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -357,8 +357,9 @@ void printTitle()
 {
     printf( "%s : Super-Resolution with deep Convolutional Neural Networks\n",
             file_me.c_str() );
-    printf( "(C)2018 Raphael Kim, pre-author : Wang Shu., Program version %s\n",
+    printf( "(C)2018 Raphael Kim, (C)2014 Wang Shu., version %s\n",
             DEF_STR_VERSION );
+    printf( "Built with OpenCV version %s\n", CV_VERSION );
 }
 
 void printHelp()
