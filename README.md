@@ -4,7 +4,8 @@ And this project includes non-OpenCV library name called as ...
 
 ## non-openCV model, libsrcnn
 * **libsrcnn** is a stand-alone library that no dependancy with OpenCV.
-* it it more 4 times faster than OpenCV model, but currently it moved to [libsrcnn](https://github.com/rageworx/libsrcnn) repository.
+* it is about 4 times more faster than OpenCV model, and currently it moved to [libsrcnn](https://github.com/rageworx/libsrcnn) repository.
+* Notice: this project contains old version of libsrcnn.
 
 ### Introduction
 This is an open source project from original of this:
