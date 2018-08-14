@@ -7,7 +7,10 @@ And this project includes non-OpenCV library name called as ...
 * it is about 4 times more faster than OpenCV model, and currently it was moved to [libsrcnn](https://github.com/rageworx/libsrcnn) repository.
 * Notice: this project contains old version of libsrcnn.
 
-### Notice 
+### Bug Notice
+ Original source SRCNN has bug at final merge process, and this source code also got same bug, too. Recommend to use my another library based on this project,  [libsrcnn](https://github.com/rageworx/libsrcnn).
+
+### Discontinued Notice 
  This project is currently discontinued, please check new [libsrcnn](https://github.com/rageworx/libsrcnn) repository for more faster, and no need to link to OpenCV.
 
 ### Introduction
