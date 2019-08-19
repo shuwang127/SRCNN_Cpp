@@ -33,6 +33,14 @@ This is an open source project from original of this:
 ### License
 Follows original SRCNN_Cpp, and it is released under the GPL v2 License (refer to the LICENSE file for details).
 
+### Example
+Origin:  
+![Example](Pictures/butterfly.png)  
+Bicubic interplation:  
+![Example](Pictures/butterfly-cubic.jpg)  
+SRCNN:  
+![Example](Pictures/butterfly-srcnn.jpg)  
+
 ### Requirements
 1. Windows may need [MSYS2](https://www.msys2.org/) and [MinGW-W64](https://github.com/msys2/msys2/wiki/MSYS2-installation).
 1. You need to install latest version of *OpenCV* to your build environments,
