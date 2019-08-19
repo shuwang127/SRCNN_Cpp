@@ -41,6 +41,7 @@ static unsigned image_width     = 0;
 static unsigned image_height    = 0;
 static bool     opt_verbose     = true;
 static bool     opt_debug       = false;
+static bool     opt_help        = false;
 static int      t_exit_code     = 0;
 
 static string   path_me;
@@ -311,6 +312,11 @@ bool parseArgs( int argc, char** argv )
                 opt_verbose = false;
             }
             else
+            if ( strtmp.find( "--help" ) == 0 )
+            {
+                opt_help = true;
+            }
+            else
             if ( file_src.size() == 0 )
             {
                 file_src = strtmp;
@@ -323,31 +329,34 @@ bool parseArgs( int argc, char** argv )
         }
     }
 
-    if ( ( file_src.size() > 0 ) && ( file_dst.size() == 0 ) )
+    if (!opt_help)
     {
-        string convname = file_src;
-        string srcext;
-
-        // changes name without file extention.
-        size_t posdot = file_src.find_last_of( "." );
-        if ( posdot != string::npos )
+        if ( ( file_src.size() > 0 ) && ( file_dst.size() == 0 ) )
         {
-            convname = file_src.substr( 0, posdot );
-            srcext   = file_src.substr( posdot );
+            string convname = file_src;
+            string srcext;
+
+            // changes name without file extention.
+            size_t posdot = file_src.find_last_of( "." );
+            if ( posdot != string::npos )
+            {
+                convname = file_src.substr( 0, posdot );
+                srcext   = file_src.substr( posdot );
+            }
+
+            convname += "_resized";
+            if ( srcext.size() > 0 )
+            {
+                convname += srcext;
+            }
+
+            file_dst = convname;
         }
 
-        convname += "_resized";
-        if ( srcext.size() > 0 )
+        if ( ( file_src.size() > 0 ) && ( file_dst.size() > 0 ) )
         {
-            convname += srcext;
+            return true;
         }
-
-        file_dst = convname;
-    }
-
-    if ( ( file_src.size() > 0 ) && ( file_dst.size() > 0 ) )
-    {
-        return true;
     }
 
     return false;
