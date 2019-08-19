@@ -23,7 +23,7 @@
     #include <omp.h>
 #endif
 
-#include "SRCNN.h"
+#include "srcnn.h"
 #include "tick.h"
 
 /* pre-calculated convolutional data */
@@ -80,7 +80,7 @@ void Convolution99(Mat& src, Mat& dst, const float kernel[9][9], float bias)
     /* Expand the src image */
     Mat src2;
     src2.create(Size(src.cols + 8, src.rows + 8), CV_8U);
-    
+
     for (int row = 0; row < src2.rows; row++)
     {
         for (int col = 0; col < src2.cols; col++)
@@ -92,7 +92,7 @@ void Convolution99(Mat& src, Mat& dst, const float kernel[9][9], float bias)
             {
                 tmpRow = 0;
             }
-            else 
+            else
             if (tmpRow >= src.rows)
             {
                 tmpRow = src.rows - 1;
@@ -102,7 +102,7 @@ void Convolution99(Mat& src, Mat& dst, const float kernel[9][9], float bias)
             {
                 tmpCol = 0;
             }
-            else 
+            else
             if (tmpCol >= src.cols)
             {
                 tmpCol = src.cols - 1;
@@ -128,7 +128,7 @@ void Convolution99(Mat& src, Mat& dst, const float kernel[9][9], float bias)
                     temp += kernel[i][j] * src2.at<unsigned char>(row + i, col + j);
                 }
             }
-            
+
             temp += bias;
 
             /* Threshold */
@@ -174,7 +174,7 @@ void Convolution11(vector<Mat>& src, Mat& dst, const float kernel[CONV1_FILTERS]
 /***
  * FuncName : Convolution55
  * Function : Complete the cell in the third Convolutional Layer
- * Parameter    : src - the second layer data 
+ * Parameter    : src - the second layer data
  *        dst - the output image
  *        kernel - the convolutional kernel
  *        bias - the cell bias
@@ -188,8 +188,8 @@ void Convolution55(vector<Mat>& src, Mat& dst, const float kernel[32][5][5], flo
     #pragma omp parallel for
     for ( unsigned cnt=0; cnt<CONV2_FILTERS; cnt++)
     {
-        src2[cnt].create( Size( src[cnt].cols + 4, 
-                                src[cnt].rows + 4 ), 
+        src2[cnt].create( Size( src[cnt].cols + 4,
+                                src[cnt].rows + 4 ),
                           CV_32F );
 
         for (int row = 0; row < src2[cnt].rows; row++)
@@ -203,7 +203,7 @@ void Convolution55(vector<Mat>& src, Mat& dst, const float kernel[32][5][5], flo
                 {
                     tmpRow = 0;
                 }
-                else 
+                else
                 if (tmpRow >= src[cnt].rows)
                 {
                     tmpRow = src[cnt].rows - 1;
@@ -213,7 +213,7 @@ void Convolution55(vector<Mat>& src, Mat& dst, const float kernel[32][5][5], flo
                 {
                     tmpCol = 0;
                 }
-                else 
+                else
                 if (tmpCol >= src[cnt].cols)
                 {
                     tmpCol = src[cnt].cols - 1;
@@ -294,7 +294,7 @@ bool parseArgs( int argc, char** argv )
         else
         {
             if ( strtmp.find( "--scale=" ) == 0 )
-            { 
+            {
                 string strval = strtmp.substr( 8 );
                 if ( strval.size() > 0 )
                 {
@@ -322,12 +322,12 @@ bool parseArgs( int argc, char** argv )
             }
         }
     }
-    
+
     if ( ( file_src.size() > 0 ) && ( file_dst.size() == 0 ) )
     {
         string convname = file_src;
         string srcext;
-        
+
         // changes name without file extention.
         size_t posdot = file_src.find_last_of( "." );
         if ( posdot != string::npos )
@@ -335,21 +335,21 @@ bool parseArgs( int argc, char** argv )
             convname = file_src.substr( 0, posdot );
             srcext   = file_src.substr( posdot );
         }
-        
+
         convname += "_resized";
         if ( srcext.size() > 0 )
         {
             convname += srcext;
         }
-        
+
         file_dst = convname;
     }
-    
+
     if ( ( file_src.size() > 0 ) && ( file_dst.size() > 0 ) )
     {
         return true;
     }
-    
+
     return false;
 }
 
@@ -383,7 +383,7 @@ void* pthreadcall( void* p )
         printf( "- Scale multiply ratio : %.2f\n", image_multiply );
         fflush( stdout );
     }
-    
+
     /* Read the original image */
     Mat pImgOrigin;
 
@@ -429,13 +429,13 @@ void* pthreadcall( void* p )
         printf( "- Image converting to Y-Cr-Cb : " );
         fflush( stdout );
     }
-	
-	unsigned perf_tick0 = tick::getTickCount();
+
+    unsigned perf_tick0 = tick::getTickCount();
 
     /* Convert the image from BGR to YCrCb Space */
     Mat pImgYCrCb;
     cvtColor(pImgOrigin, pImgYCrCb, CV_BGR2YCrCb);
-    
+
     if ( pImgYCrCb.empty() == false )
     {
         if ( opt_verbose == true )
@@ -494,19 +494,19 @@ void* pthreadcall( void* p )
 
     /* Resize the Y-Cr-Cb Channel with Bicubic Interpolation */
     vector<Mat> pImg(3);
-    
+
     #pragma omp parallel for
     for (int i = 0; i < 3; i++)
     {
         Size newsz = pImgYCrCbCh[i].size();
         newsz.width  *= image_multiply;
         newsz.height *= image_multiply;
-        
-        resize( pImgYCrCbCh[i], 
-                pImg[i], 
-                newsz, 
-                0, 
-                0, 
+
+        resize( pImgYCrCbCh[i],
+                pImg[i],
+                newsz,
+                0,
+                0,
                 CV_INTER_CUBIC );
     }
 
@@ -515,7 +515,7 @@ void* pthreadcall( void* p )
         printf( "Ok.\n" );
     }
 
-    // -----------------------------------------------------------    
+    // -----------------------------------------------------------
 
     int cnt = 0;
 
@@ -533,9 +533,9 @@ void* pthreadcall( void* p )
     {
         pImgConv1[cnt].create( pImg[0].size(), CV_32F );
 
-        Convolution99( pImg[0], 
-                       pImgConv1[cnt], 
-                       weights_conv1_data[cnt], 
+        Convolution99( pImg[0],
+                       pImgConv1[cnt],
+                       weights_conv1_data[cnt],
                        biases_conv1[cnt] );
     }
 
@@ -558,10 +558,10 @@ void* pthreadcall( void* p )
     for ( unsigned cnt=0; cnt<CONV2_FILTERS; cnt++ )
     {
         pImgConv2[cnt].create(pImg[0].size(), CV_32F);
-        Convolution11( pImgConv1, 
-                       pImgConv2[cnt], 
-                       weights_conv2_data[cnt], 
-                       biases_conv2[cnt]);  
+        Convolution11( pImgConv1,
+                       pImgConv2[cnt],
+                       weights_conv2_data[cnt],
+                       biases_conv2[cnt]);
     }
 
     if ( opt_verbose == true )
@@ -581,7 +581,7 @@ void* pthreadcall( void* p )
     Mat pImgConv3;
     pImgConv3.create(pImg[0].size(), CV_8U);
     Convolution55(pImgConv2, pImgConv3, weights_conv3_data, biases_conv3);
-   
+
     if ( opt_verbose == true )
     {
         printf( "completed.\n");
@@ -591,6 +591,7 @@ void* pthreadcall( void* p )
 
     /* Merge the Y-Cr-Cb Channel into an image */
     Mat pImgYCrCbOut;
+    pImg[0] = pImgConv3;
     merge(pImg, pImgYCrCbOut);
 
     if ( opt_verbose == true )
@@ -610,8 +611,8 @@ void* pthreadcall( void* p )
     /* Convert the image from YCrCb to BGR Space */
     Mat pImgBGROut;
     cvtColor(pImgYCrCbOut, pImgBGROut, CV_YCrCb2BGR);
-	
-	unsigned perf_tick1 = tick::getTickCount();
+
+    unsigned perf_tick1 = tick::getTickCount();
 
     if ( pImgBGROut.empty() == false )
     {
@@ -623,7 +624,7 @@ void* pthreadcall( void* p )
         }
 
         imwrite( file_dst.c_str() , pImgBGROut);
-    
+
         if ( opt_verbose == true )
         {
             printf( "Ok.\n" );
@@ -631,22 +632,22 @@ void* pthreadcall( void* p )
     }
     else
     {
-		if ( opt_verbose == true )
+        if ( opt_verbose == true )
         {
-			printf( "Failure.\n" );
-		}
-		
+            printf( "Failure.\n" );
+        }
+
         t_exit_code = -10;
         pthread_exit( &t_exit_code );
     }
-	
-	if ( opt_verbose == true )
-	{
-		printf( "- Performace : %u ms took.\n", perf_tick1 - perf_tick0 );
-	}
-    
+
+    if ( opt_verbose == true )
+    {
+        printf( "- Performace : %u ms took.\n", perf_tick1 - perf_tick0 );
+    }
+
     fflush( stdout );
-        
+
     t_exit_code = 0;
     pthread_exit( NULL );
     return NULL;
@@ -681,7 +682,7 @@ int main( int argc, char** argv )
     {
         printf( "Error: pthread failure.\n" );
     }
-    
+
     return t_exit_code;
 }
 #endif /// of EXPORTLIBSRCNN
