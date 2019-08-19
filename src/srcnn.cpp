@@ -95,7 +95,7 @@ void Convolution99(Mat& src, Mat& dst, const float kernel[9][9], float bias)
     {
         rowf[row] = IntTrim(0, height - 1, row - 4);
     }
-    for (col = 0; col < height + 8; col++)
+    for (col = 0; col < width + 8; col++)
     {
         colf[col] = IntTrim(0, width - 1, col - 4);
     }
