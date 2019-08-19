@@ -67,6 +67,12 @@ void Convolution55( vector<Mat>& src, Mat& dst, \
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static int IntTrim(int a, int b, int c)
+{
+    int buff[3] = {a, c, b};
+    return buff[ (int)(c > a) + (int)(c > b) ];
+}
+
 /***
  * FuncName : Convolution99
  * Function : Complete one cell in the first Convolutional Layer
@@ -78,62 +84,42 @@ void Convolution55( vector<Mat>& src, Mat& dst, \
 ***/
 void Convolution99(Mat& src, Mat& dst, const float kernel[9][9], float bias)
 {
+    int width, height, row, col, i, j;
+    float temp;
+    height = dst.rows;
+    width = dst.cols;
+    int rowf[height + 8], colf[width + 8];
+
     /* Expand the src image */
-    Mat src2;
-    src2.create(Size(src.cols + 8, src.rows + 8), CV_8U);
-
-    for (int row = 0; row < src2.rows; row++)
+    for (row = 0; row < height + 8; row++)
     {
-        for (int col = 0; col < src2.cols; col++)
-        {
-            int tmpRow = row - 4;
-            int tmpCol = col - 4;
-
-            if (tmpRow < 0)
-            {
-                tmpRow = 0;
-            }
-            else
-            if (tmpRow >= src.rows)
-            {
-                tmpRow = src.rows - 1;
-            }
-
-            if (tmpCol < 0)
-            {
-                tmpCol = 0;
-            }
-            else
-            if (tmpCol >= src.cols)
-            {
-                tmpCol = src.cols - 1;
-            }
-
-            src2.at<unsigned char>(row, col) = \
-                src.at<unsigned char>(tmpRow, tmpCol);
-        }
+        rowf[row] = IntTrim(0, height - 1, row - 4);
+    }
+    for (col = 0; col < height + 8; col++)
+    {
+        colf[col] = IntTrim(0, width - 1, col - 4);
     }
 
     /* Complete the Convolution Step */
-    for (int row = 0; row < dst.rows; row++)
+    for (row = 0; row < height; row++)
     {
-        for (int col = 0; col < dst.cols; col++)
+        for (col = 0; col < width; col++)
         {
             /* Convolution */
-            float temp = 0;
+            temp = 0;
 
-            for (int i = 0; i < 9; i++)
+            for (i = 0; i < 9; i++)
             {
-                for (int j = 0; j < 9; j++)
+                for (j = 0; j < 9; j++)
                 {
-                    temp += kernel[i][j] * src2.at<unsigned char>(row + i, col + j);
+                    temp += kernel[i][j] * src.at<unsigned char>(rowf[row + i], colf[col + j]);
                 }
             }
 
             temp += bias;
 
             /* Threshold */
-            temp = (temp >= 0) ? temp : 0;
+            temp = (temp < 0) ? 0 : temp;
 
             dst.at<float>(row, col) = temp;
         }
@@ -151,21 +137,26 @@ void Convolution99(Mat& src, Mat& dst, const float kernel[9][9], float bias)
 ***/
 void Convolution11(vector<Mat>& src, Mat& dst, const float kernel[CONV1_FILTERS], float bias)
 {
-    for (int row = 0; row < dst.rows; row++)
+    int width, height, row, col, i, j;
+    float temp;
+    height = dst.rows;
+    width = dst.cols;
+
+    for (row = 0; row < height; row++)
     {
-        for (int col = 0; col < dst.cols; col++)
+        for (col = 0; col < width; col++)
         {
             /* Process with each pixel */
-            float temp = 0;
+            temp = 0;
 
-            for (int i = 0; i < CONV1_FILTERS; i++)
+            for (i = 0; i < CONV1_FILTERS; i++)
             {
                 temp += src[i].at<float>(row, col) * kernel[i];
             }
             temp += bias;
 
             /* Threshold */
-            temp = (temp >= 0) ? temp : 0;
+            temp = (temp < 0) ? 0 : temp;
 
             dst.at<float>(row, col) = temp;
         }
@@ -183,66 +174,41 @@ void Convolution11(vector<Mat>& src, Mat& dst, const float kernel[CONV1_FILTERS]
 ***/
 void Convolution55(vector<Mat>& src, Mat& dst, const float kernel[32][5][5], float bias)
 {
+    int width, height, row, col, i, m, n;
+    unsigned cnt;
+    float temp;
+    double temppixel;
+    height = dst.rows;
+    width = dst.cols;
+    int rowf[height + 4], colf[width + 4];
+
     /* Expand the src image */
-    vector<Mat> src2(CONV2_FILTERS);
-
-    #pragma omp parallel for
-    for ( unsigned cnt=0; cnt<CONV2_FILTERS; cnt++)
+    for (row = 0; row < height + 4; row++)
     {
-        src2[cnt].create( Size( src[cnt].cols + 4,
-                                src[cnt].rows + 4 ),
-                          CV_32F );
-
-        for (int row = 0; row < src2[cnt].rows; row++)
-        {
-            for (int col = 0; col < src2[cnt].cols; col++)
-            {
-                int tmpRow = row - 2;
-                int tmpCol = col - 2;
-
-                if (tmpRow < 0)
-                {
-                    tmpRow = 0;
-                }
-                else
-                if (tmpRow >= src[cnt].rows)
-                {
-                    tmpRow = src[cnt].rows - 1;
-                }
-
-                if (tmpCol < 0)
-                {
-                    tmpCol = 0;
-                }
-                else
-                if (tmpCol >= src[cnt].cols)
-                {
-                    tmpCol = src[cnt].cols - 1;
-                }
-
-                src2[cnt].at<float>(row, col) = \
-                    src[cnt].at<float>(tmpRow, tmpCol);
-            }
-        }
+        rowf[row] = IntTrim(0, height - 1, row - 2);
+    }
+    for (col = 0; col < width + 4; col++)
+    {
+        colf[col] = IntTrim(0, width - 1, col - 2);
     }
 
     /* Complete the Convolution Step */
-    #pragma omp parallel for
-    for ( int row=0; row<dst.rows; row++ )
+    //#pragma omp parallel for
+    for (row = 0; row < height; row++)
     {
-        for (int col = 0; col < dst.cols; col++)
+        for (col = 0; col < width; col++)
         {
-            float temp = 0;
+            temp = 0;
 
-            for (int i = 0; i < CONV2_FILTERS; i++)
+            for (i = 0; i < CONV2_FILTERS; i++)
             {
-                double temppixel = 0;
-                for (int m = 0; m < 5; m++)
+                temppixel = 0;
+                for (m = 0; m < 5; m++)
                 {
-                    for (int n = 0; n < 5; n++)
+                    for (n = 0; n < 5; n++)
                     {
                         temppixel += \
-                        kernel[i][m][n] * src2[i].at<float>(row + m, col + n);
+                        kernel[i][m][n] * src[i].at<float>(rowf[row + m], colf[col + n]);
                     }
                 }
 
@@ -252,14 +218,13 @@ void Convolution55(vector<Mat>& src, Mat& dst, const float kernel[32][5][5], flo
             temp += bias;
 
             /* Threshold */
-            temp = (temp >= 0) ? temp : 0;
-            temp = (temp <= 255) ? temp : 255;
+            temp = IntTrim(0, 255, temp);
 
             dst.at<unsigned char>(row, col) = (unsigned char)temp;
         }
     }
 
-    return;
+    //return;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -376,10 +341,11 @@ void printHelp()
     printf( "\n" );
     printf( "    usage : %s (options) [source file name] ([output file name])\n", file_me.c_str() );
     printf( "\n" );
-    printf( "    _options_\n" );
+    printf( "    _options_:\n" );
     printf( "\n" );
     printf( "        --scale=( ratio: 0.1 to .. ) : scaling by ratio.\n" );
     printf( "        --noverbose                  : turns off all verbose\n" );
+    printf( "        --help                       : this help\n" );
     printf( "\n" );
 }
 
