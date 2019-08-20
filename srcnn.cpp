@@ -17,8 +17,6 @@ using namespace cv;
 
 /* Marco Definition */
 #define UP_SCALE        2       // the scale of super-resolution
-#define CONV1_FILTERS   64      // the first convolutional layer
-#define CONV2_FILTERS   32      // the second convolutional layer
 #define INFO            1       // show the debug info
 //#define DEBUG           1       // show the debug info
 //#define DISPLAY         1       // display the temp image
@@ -42,20 +40,20 @@ static int IntTrim(int a, int b, int c)
 }
 
 /***
- * FuncName : Convolution99
- * Function : Complete one cell in the first Convolutional Layer
+ * FuncName : Convolution99x11
+ * Function : Complete one cell in the first and second Convolutional Layer
  * Parameter    : src - the original input image
  *        dst - the output image
  *        kernel - the convolutional kernel
  *        bias - the cell bias
  * Output   : <void>
 ***/
-void Convolution99(Mat& src, Mat& dst, float kernel[9][9], float bias)
+void Convolution99x11(Mat& src, vector<Mat>& dst, float kernel99[CONV1_FILTERS][9][9], float bias99[CONV1_FILTERS], float kernel11[CONV2_FILTERS][CONV1_FILTERS], float bias11[CONV2_FILTERS])
 {
-    int width, height, row, col, i, j;
-    float temp;
-    height = dst.rows;
-    width = dst.cols;
+    int width, height, row, col, i, j, k;
+    float temp[CONV1_FILTERS], result;
+    height = src.rows;
+    width = src.cols;
     int rowf[height + 8], colf[width + 8];
 
     /* Expand the src image */
@@ -73,62 +71,41 @@ void Convolution99(Mat& src, Mat& dst, float kernel[9][9], float bias)
     {
         for (col = 0; col < width; col++)
         {
-            /* Convolution */
-            temp = 0;
-
-            for (i = 0; i < 9; i++)
+            for (k = 0; k < CONV1_FILTERS; k++)
             {
-                for (j = 0; j < 9; j++)
+                /* Convolution */
+                temp[k] = 0.0;
+
+                for (i = 0; i < 9; i++)
                 {
-                    temp += kernel[i][j] * src.at<unsigned char>(rowf[row + i], colf[col + j]);
+                    for (j = 0; j < 9; j++)
+                    {
+                        temp[k] += kernel99[k][i][j] * src.at<unsigned char>(rowf[row + i], colf[col + j]);
+                    }
                 }
+
+                temp[k] += bias99[k];
+
+                /* Threshold */
+                temp[k] = (temp[k] < 0) ? 0 : temp[k];
             }
 
-            temp += bias;
-
-            /* Threshold */
-            temp = (temp < 0) ? 0 : temp;
-
-            dst.at<float>(row, col) = temp;
-        }
-    }
-
-    return;
-}
-
-/***
- * FuncName : Convolution11
- * Function : Complete one cell in the second Convolutional Layer
- * Parameter    : src - the first layer data
- *        dst - the output data
- *        kernel - the convolutional kernel
- *        bias - the cell bias
- * Output   : <void>
-***/
-void Convolution11(vector<Mat>& src, Mat& dst, float kernel[CONV1_FILTERS], float bias)
-{
-    int width, height, row, col, i;
-    float temp;
-    height = dst.rows;
-    width = dst.cols;
-
-    for (row = 0; row < height; row++)
-    {
-        for (col = 0; col < width; col++)
-        {
             /* Process with each pixel */
-            temp = 0;
-
-            for (i = 0; i < CONV1_FILTERS; i++)
+            for (k = 0; k < CONV2_FILTERS; k++)
             {
-                temp += src[i].at<float>(row, col) * kernel[i];
+                result = 0.0;
+
+                for (i = 0; i < CONV1_FILTERS; i++)
+                {
+                    result += temp[i] * kernel11[k][i];
+                }
+                result += bias11[k];
+
+                /* Threshold */
+                result = (result < 0) ? 0 : result;
+
+                dst[k].at<float>(row, col) = result;
             }
-            temp += bias;
-
-            /* Threshold */
-            temp = (temp < 0) ? 0 : temp;
-
-            dst.at<float>(row, col) = temp;
         }
     }
 
@@ -303,43 +280,23 @@ int main(int argc, char** argv)
 #endif
 
         /******************* The First Layer *******************/
-        vector<Mat> pImgConv1(CONV1_FILTERS);
-        for (int i = 0; i < CONV1_FILTERS; i++)
-        {
-            pImgConv1[i].create(pImg[0].size(), CV_32F);
-            Convolution99(pImg[0], pImgConv1[i], weights_conv1_data[i], biases_conv1[i]);
-#ifdef DEBUG
-            cout << "Convolutional Layer I : " << setw(2) << i + 1 << "/64 Cell Completed ..." << endl;
-#endif
-        }
-#ifdef DISPLAY
-        imshow("Conv1", pImgConv1[8]);
-#endif
-#ifdef SAVE
-        imwrite("Result/Conv1.png", pImgConv1[8]);
-#endif
-#ifdef INFO
-        cout << "Convolutional Layer I : 100% Complete ..." << endl;
-#endif
-
-        /******************* The Second Layer *******************/
         vector<Mat> pImgConv2(CONV2_FILTERS);
         for (int i = 0; i < CONV2_FILTERS; i++)
         {
             pImgConv2[i].create(pImg[0].size(), CV_32F);
-            Convolution11(pImgConv1, pImgConv2[i], weights_conv2_data[i], biases_conv2[i]);
+        }
+        Convolution99x11(pImg[0], pImgConv2, weights_conv1_data, biases_conv1, weights_conv2_data, biases_conv2);
 #ifdef DEBUG
-            cout << "Convolutional Layer II : " << setw(2) << i + 1 << "/32 Cell Complete..." << endl;
+        cout << "Convolutional Layer I and II: " << setw(2) << i + 1 << "/64x32 Cell Completed ..." << endl;
 #endif
-    }
 #ifdef DISPLAY
-        imshow("Conv2", pImgConv2[31]);
+        imshow("Conv1x2", pImgConv2[31]);
 #endif
 #ifdef SAVE
-        imwrite("Result/Conv2.png", pImgConv2[31]);
+        imwrite("Result/Conv1x2.png", pImgConv2[31]);
 #endif
 #ifdef INFO
-        cout << "Convolutional Layer II : 100% Complete ..." << endl;
+        cout << "Convolutional Layer I and II : 100% Complete ..." << endl;
 #endif
 
         /******************* The Third Layer *******************/
