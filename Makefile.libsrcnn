@@ -9,10 +9,10 @@ CP  = cp -fr
 SRC_PATH = src
 OBJ_PATH = obj
 BIN_PATH = lib
-LSTATIC  = $(BIN_PATH)/libsrcnn.a
-LSHARED  = $(BIN_PATH)/libsrcnn.so.0
-LHEAD    = $(BIN_PATH)/libsrcnn.h
-TARGET   = $(LSTATIC) $(LSHARED) $(LHEAD)
+LSTATIC  = libsrcnn.a
+LSHARED  = libsrcnn.so.0
+LHEAD    = libsrcnn.h
+TARGET   = $(BIN_PATH)/$(LSTATIC) $(BIN_PATH)/$(LSHARED) $(BIN_PATH)/$(LHEAD)
 
 SRCS = $(wildcard $(SRC_PATH)/*.cpp)
 OBJS = $(SRCS:$(SRC_PATH)/%.cpp=$(OBJ_PATH)/%.o)
@@ -40,14 +40,14 @@ $(OBJS): $(OBJ_PATH)/%.o: $(SRC_PATH)/%.cpp
 	@echo "Compiling $< ..."
 	@$(CXX) $(CFLAGS) $(LFLAGS) -c $< -o $@
 
-$(LSTATIC): $(OBJS)
+$(BIN_PATH)/$(LSTATIC): $(OBJS)
 	@echo "Linking $@ ..."
 	$(AR) -q $@ $^
 
-$(LSHARED): $(OBJS)
+$(BIN_PATH)/$(LSHARED): $(OBJS)
 	@echo "Linking $@ ..."
-	$(CXX) -shared -Wl,-soname,$@ -o $@ $^ $(CFLAGS) $(LDFLAGS)
+	$(CXX) -shared -Wl,-soname,$(LSHARED) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
-$(LHEAD): $(SRC_PATH)/libsrcnn.h
+$(BIN_PATH)/$(LHEAD): $(SRC_PATH)/libsrcnn.h
 	@echo "Head $@ ..."
 	$(CP) $^ $@
