@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <cstdlib>
 
 #include "opencv2/core/core.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -27,9 +28,11 @@ using namespace cv;
 /* Load the convolutional data */
 #include "convdata.h"
 
+float partCNN = 0.5;
+
 void UsageShow(char* pname)
 {
-    cout << "Usage: " << pname << " image_file [image_output]" << endl;
+    cout << "Usage: " << pname << " image_file [image_output] [partCNN=0.5 {0.0-1.0}]" << endl;
 }
 
 static int IntTrim(int a, int b, int c)
@@ -185,13 +188,40 @@ void Convolution55(vector<Mat>& src, Mat& dst, float kernel[32][5][5], float bia
             temp += bias;
 
             /* Threshold */
-            temp = IntTrim(0, 255, temp);
+            temp = IntTrim(0, 255, (int)(temp + 0.5));
 
             dst.at<unsigned char>(row, col) = (unsigned char)temp;
         }
 #ifdef DEBUG
         cout << "Convolutional Layer III : " << setw(4) << row + 1 << '/' << dst.rows << " Complete ..." << endl;
 #endif
+    }
+
+    return;
+}
+
+void ConvolutionA(Mat& src, Mat& dst, float part)
+{
+    int width, height, row, col;
+    float cnn, cub;
+    height = src.rows;
+    width = src.cols;
+
+    for (row = 0; row < height; row++)
+    {
+        for (col = 0; col < width; col++)
+        {
+            /* Process with each pixel */
+            cnn = src.at<unsigned char>(row, col);
+            cub = dst.at<unsigned char>(row, col);
+            cnn *= part;
+            cnn += (1.0 - part) * cub;
+
+            /* Threshold */
+            cnn = IntTrim(0, 255, (int)(cnn + 0.5));
+
+            dst.at<unsigned char>(row, col) = (unsigned char)cnn;
+        }
     }
 
     return;
@@ -214,6 +244,7 @@ int main(int argc, char** argv)
         pImgOrigin = imread(argv[1]);
 #ifdef INFO
         cout << "Read the Original Image Successfully ..." << endl;
+        cout << "Scale : " << UP_SCALE << endl;
 #endif
 #ifdef SAVE
         imwrite("Result/Origin.png", pImgOrigin);
@@ -325,8 +356,16 @@ int main(int argc, char** argv)
         cout << "Convolutional Layer III : 100% Complete ..." << endl;
 #endif
 
-        /* Merge Ycinv and Cr-Cb Channel*/
-        pImg[0] = pImgConv3;
+        /* Merge Yconv and Cr-Cb Channel*/
+        if (argc > 3)
+        {
+            partCNN = atof(argv[3]);
+            partCNN = (partCNN < 0.0) ? 0 : ((partCNN > 1.0) ? 1.0 : partCNN);
+        }
+        ConvolutionA(pImgConv3, pImg[0], partCNN);
+#ifdef INFO
+        cout << "Average, Part CNN : " << partCNN << endl;
+#endif
 
         /* Merge the Y-Cr-Cb Channel into an image */
         Mat pImgYCrCbOut;
