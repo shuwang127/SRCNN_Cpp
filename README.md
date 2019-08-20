@@ -15,7 +15,8 @@ SRCNN_Cpp is released under the GPL v2 License (refer to the LICENSE file for de
 ### Contents
 1. [Requirements](#requirements)
 2. [Compile](#compile)
-3. [Demo](#demo)
+3. [Example](#example)
+4. [Demo](#demo)
 
 ### Requirements
 
@@ -35,31 +36,26 @@ Our *SRCNN_Cpp* is developed in fc22 x64_86 system with g++-5.3 and OpenCV 3.0.0
 
 You can compile the C/C++ files on the command line in your Linux system. 
 
-``` Shell
-$ ./opencv.sh SRCNN
+```sh
+$ make
 ```
 
-If the compile is successful, you will see the information below:
-
-``` Shell
-  [Compile] Complete -- SRCNN.o has created!
-  [Linking] Complete -- SRCNN has created!
-```
+### Example
+Origin:  
+![Example](Pictures/butterfly.png)  
+Bicubic interplation:  
+![Example](Pictures/butterfly-cubic.jpg)  
+SRCNN:  
+![Example](Pictures/butterfly-srcnn.jpg)  
 
 ### Demo
 
 You can run the following command to test the demo program.
 
-``` Shell
-./srcnn.sh Pictures/butterfly_GT.bmp
+```sh
+srcnn Pictures/butterfly.png butterfly.x2.png 
 ```
 
-And the output images is save in the path: ./Output/
+----
 
-If you want to test your own images, please run the following command:
-
-``` Shell
-./srcnn.sh Path_To_Your_Own_Image
-```
-
-Enjoy yourself~
+https://github.com/ImageProcessing-ElectronicPublications/srcnncv (https://github.com/shuwang127/SRCNN_Cpp)
