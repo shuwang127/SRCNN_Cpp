@@ -78,14 +78,20 @@ static bool opt_cubicfilter = true;
 void convolution99( ImgF32 &src, ImgF32 &dst, const KernelMat99 kernel, float bias );
 void convolution11( ImgConv1Layers &src, ImgYCbCr &dst, const ConvKernel1 kernel, float bias );
 void convolution55( ImgConv2Layers &src, ImgU8 &dst, const ConvKernel32_55 kernel, float bias );
-void Convolution99x11( ImgF32& src, vector<ImgF32>& dst, const ConvKernel64_99 kernel99, \
-                                                         const ConvKernel1 bias99, \
-                                                         const ConvKernel21 kernel11, \
-                                                         const ConvKernel2 bias11 );
+void Convolution99x11( ImgF32& src, ImgF32* dst, const ConvKernel64_99 kernel99, \
+                                                 const ConvKernel1 bias99, \
+                                                 const ConvKernel21 kernel11, \
+                                                 const ConvKernel2 bias11 );
 
 ////////////////////////////////////////////////////////////////////////////////
 
 // some utility functions here ...
+
+inline int intTrim(int a, int b, int c)
+{
+    int buff[3] = {a, c, b};
+    return buff[ (int)(c > a) + (int)(c > b) ];
+}
 
 void resetImgU8( ImgU8 &img )
 {
@@ -476,17 +482,17 @@ void convolution55( ImgConv2Layers &src, ImgU8 &dst, const ConvKernel32_55 kerne
  *        bias - the cell bias
  * Output   : <void>
 ***/
-void Convolution99x11( ImgF32& src, vector<ImgF32>& dst, const ConvKernel64_99 kernel99, \
-                                                         const ConvKernel1 bias99, \
-                                                         const ConvKernel21 kernel11, \
-                                                         const ConvKernel2 bias11 )
+void Convolution99x11( ImgF32& src, ImgF32* dst, const ConvKernel64_99 kernel99, \
+                                                 const ConvKernel1 bias99, \
+                                                 const ConvKernel21 kernel11, \
+                                                 const ConvKernel2 bias11 )
 {
-    float temp[CONV1_FILTERS] = {0.}f;
     float result = 0.f;
     int height = src.height;
     int width = src.width;
     int row = 0;
     int col = 0;
+    float temp[CONV1_FILTERS] = {0.f};
     int rowf[height + 8] = {0};
     int colf[width + 8] = {0};
 
@@ -494,17 +500,17 @@ void Convolution99x11( ImgF32& src, vector<ImgF32>& dst, const ConvKernel64_99 k
     #pragma omp parallel for
     for (row = 0; row < height + 8; row++)
     {
-        rowf[row] = IntTrim(0, height - 1, row - 4);
+        rowf[row] = intTrim(0, height - 1, row - 4);
     }
 
     #pragma omp parallel for
     for (col = 0; col < width + 8; col++)
     {
-        colf[col] = IntTrim(0, width - 1, col - 4);
+        colf[col] = intTrim(0, width - 1, col - 4);
     }
 
     /* Complete the Convolution Step */
-    #pragma omp parallel for private(col)
+    #pragma omp parallel for private(col,temp) shared(dst)
     for (row = 0; row < height; row++)
     {
         for (col = 0; col < width; col++)
@@ -512,11 +518,11 @@ void Convolution99x11( ImgF32& src, vector<ImgF32>& dst, const ConvKernel64_99 k
             for (int k = 0; k < CONV1_FILTERS; k++)
             {
                 /* Convolution */
-                float temp[k] = 0.f;
+                temp[k] = 0.f;
 
-                for (i = 0; i < 9; i++)
+                for (int i = 0; i < 9; i++)
                 {
-                    for (j = 0; j < 9; j++)
+                    for (int j = 0; j < 9; j++)
                     {
                         temp[k] += kernel99[k][i][j] * src.buff[ rowf[row + i], colf[col + j] ];
                     }
@@ -610,7 +616,7 @@ int ProcessSRCNN( const unsigned char* refbuff,
     discardImgYCbCr( imgYCbCr );
 
     /******************* The First Layer *******************/
-
+/*
     libsrcnn::ImgConv1Layers imgConv1;
 
     libsrcnn::initImgConvLayers( &imgConv1[0],
@@ -626,16 +632,19 @@ int ProcessSRCNN( const unsigned char* refbuff,
                                  weights_conv1_data[cnt],
                                  biases_conv1[cnt] );
     }
+    */
 
     /******************* The Second Layer *******************/
-
     libsrcnn::ImgConv2Layers imgConv2;
-
+/*
     libsrcnn::initImgConvLayers( &imgConv2[0],
                                  imgResized[0].width,
                                  imgResized[0].height,
                                  CONV2_FILTERS );
+*/
+    Convolution99x11( imgResized[0], imgConv2, weights_conv1_data, biases_conv1, weights_conv2_data, biases_conv2 );
 
+/*
     #pragma omp parallel for
     for ( unsigned cnt=0; cnt<CONV2_FILTERS; cnt++ )
     {
@@ -644,7 +653,7 @@ int ProcessSRCNN( const unsigned char* refbuff,
                                  weights_conv2_data[cnt],
                                  biases_conv2[cnt]);
     }
-
+*/
     /******************* The Third Layer *******************/
 
     libsrcnn::ImgU8 imgConv3;
@@ -669,7 +678,7 @@ int ProcessSRCNN( const unsigned char* refbuff,
     libsrcnn::discardConvLayers( imgResized, 3 );
 
     // discard used buffers ..
-    libsrcnn::discardConvLayers( &imgConv1[0], CONV1_FILTERS );
+    //libsrcnn::discardConvLayers( &imgConv1[0], CONV1_FILTERS );
     libsrcnn::discardConvLayers( &imgConv2[0], CONV2_FILTERS );
 
     if ( imgRGB.buff != NULL )

@@ -275,7 +275,7 @@ bool savetocolorpng( Fl_RGB_Image* imgcached, const char* fpath )
 
 int main( int argc, char** argv )
 {
-	printf( "Test for SRCNN with FLTK-%d.%d.%d\n",
+	printf( "libsrcnn inter-test with FLTK-%d.%d.%d\n",
             FL_MAJOR_VERSION, FL_MINOR_VERSION, FL_PATCH_VERSION );
 	printf( "(C)2018...2023 Raphael Kim\n\n" );
 	fflush( stdout );
@@ -290,7 +290,7 @@ int main( int argc, char** argv )
     int imgtype = testImageFile( imgtestpath, &imgbuff, &imgsz );
 	if ( imgtype > 0 )
 	{
-		printf( "- Image loaded : ");
+		printf( "- Image (%s) loaded : ", imgtestpath );
 
 		switch( imgtype )
 		{
@@ -335,7 +335,7 @@ int main( int argc, char** argv )
 			unsigned     ref_w   = imgRGB->w();
 			unsigned     ref_h   = imgRGB->h();
 			unsigned     ref_d   = imgRGB->d();
-			float mulf = 2.0f;
+			float        mulf    = 2.0f;
 			uchar*       outbuff = NULL;
 			unsigned	 outsz   = 0;
 
@@ -354,45 +354,47 @@ int main( int argc, char** argv )
 
 			unsigned     tick1 = tick::getTickCount();
 
-			if ( ( reti == 0 ) && ( outsz > 0 ) )
-			{
-				unsigned new_w = ref_w * mulf;
-				unsigned new_h = ref_h * mulf;
+            unsigned new_w = (unsigned)( (float)ref_w * mulf );
+            unsigned new_h = (unsigned)( (float)ref_h * mulf );
+            unsigned exp_sz = new_w * new_h * ref_d;
 
+			if ( ( reti == 0 ) && ( outsz == exp_sz ) )
+			{
 				printf( "Test Ok, took %u ms.\n", tick1 - tick0 );
 
 				Fl_RGB_Image* imgDump = new Fl_RGB_Image( outbuff, new_w, new_h, 3 );
 				if ( imgDump != NULL )
 				{
-					savetocolorpng( imgDump, "testout.png" );
+					savetocolorpng( imgDump, "Pictures/testout.png" );
 					fl_imgtk::discard_user_rgb_image( imgDump );
 				}
 			}
 			else
 			{
 				printf( "Failed, error code = %d\n", reti );
+                printf( ">> Expected return buffer size = %u, but %u returned.\n",
+                        exp_sz, outsz );
 			}
 
 			delete imgRGB;
 		}
 		else
 		{
-			printf( "error: load failre - %s\n",  imgtestpath );
+			printf( "error: load failure - %s\n",  imgtestpath );
 		}
 	}
 	else
 	{
-		printf( "Failed to load bitmap.\n" );
-		printf( "Failed to load bitmap.\n" );
+		printf( "Failed to load image (%s).\n", imgtestpath );
 	}
 
-#ifdef DEBUG
+#ifdef DEBUG_WAIT_RETURN
 	// let check memory leak before program terminated.
 	printf( "- Input any number and press ENTER to terminate, check memory state.\n" );
 	fflush( stdout );
 	unsigned meaningless = 0;
 	scanf( "%d", &meaningless );
-#endif /// of DEBUG
+#endif /// of DEBUG_WAIT_RETURN
 
 	return 0;
 }
