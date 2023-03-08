@@ -14,7 +14,6 @@ BIN_PATH = bin
 TARGET   = srcnn
 
 SRCS += $(SRC_PATH)/frawscale.cpp
-SRCS += $(SRC_PATH)/libsrcnn.cpp
 SRCS += $(SRC_PATH)/tick.cpp
 SRCS += $(SRC_PATH)/srcnn.cpp
 OBJS = $(SRCS:$(SRC_PATH)/%.cpp=$(OBJ_PATH)/%.o)

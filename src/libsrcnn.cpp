@@ -78,6 +78,10 @@ static bool opt_cubicfilter = true;
 void convolution99( ImgF32 &src, ImgF32 &dst, const KernelMat99 kernel, float bias );
 void convolution11( ImgConv1Layers &src, ImgYCbCr &dst, const ConvKernel1 kernel, float bias );
 void convolution55( ImgConv2Layers &src, ImgU8 &dst, const ConvKernel32_55 kernel, float bias );
+void Convolution99x11( ImgF32& src, vector<ImgF32>& dst, const ConvKernel64_99 kernel99, \
+                                                         const ConvKernel1 bias99, \
+                                                         const ConvKernel21 kernel11, \
+                                                         const ConvKernel2 bias11 );
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -282,6 +286,7 @@ void copyImgU8toImgF32( ImgU8 &src, ImgF32 &dest )
 
 ////////////////////////////////////////////////////////////////////////////////
 
+
 void convolution99( ImgF32 &src, ImgF32 &dst, const KernelMat99 kernel, float bias )
 {
     /* Expand the src image */
@@ -460,6 +465,87 @@ void convolution55( ImgConv2Layers &src, ImgU8 &dst, const ConvKernel32_55 kerne
     }
 
     discardConvLayers( &src2[0], CONV2_FILTERS );
+}
+
+/***
+ * FuncName : Convolution99x11
+ * Function : Complete one cell in the first and second Convolutional Layer
+ * Parameter    : src - the original input image
+ *        dst - the output image
+ *        kernel - the convolutional kernel
+ *        bias - the cell bias
+ * Output   : <void>
+***/
+void Convolution99x11( ImgF32& src, vector<ImgF32>& dst, const ConvKernel64_99 kernel99, \
+                                                         const ConvKernel1 bias99, \
+                                                         const ConvKernel21 kernel11, \
+                                                         const ConvKernel2 bias11 )
+{
+    float temp[CONV1_FILTERS] = {0.}f;
+    float result = 0.f;
+    int height = src.height;
+    int width = src.width;
+    int row = 0;
+    int col = 0;
+    int rowf[height + 8] = {0};
+    int colf[width + 8] = {0};
+
+    /* Expand the src image */
+    #pragma omp parallel for
+    for (row = 0; row < height + 8; row++)
+    {
+        rowf[row] = IntTrim(0, height - 1, row - 4);
+    }
+
+    #pragma omp parallel for
+    for (col = 0; col < width + 8; col++)
+    {
+        colf[col] = IntTrim(0, width - 1, col - 4);
+    }
+
+    /* Complete the Convolution Step */
+    #pragma omp parallel for private(col)
+    for (row = 0; row < height; row++)
+    {
+        for (col = 0; col < width; col++)
+        {
+            for (int k = 0; k < CONV1_FILTERS; k++)
+            {
+                /* Convolution */
+                float temp[k] = 0.f;
+
+                for (i = 0; i < 9; i++)
+                {
+                    for (j = 0; j < 9; j++)
+                    {
+                        temp[k] += kernel99[k][i][j] * src.buff[ rowf[row + i], colf[col + j] ];
+                    }
+                }
+
+                temp[k] += bias99[k];
+
+                /* Threshold */
+                temp[k] = (temp[k] < 0) ? 0 : temp[k];
+            }
+
+            /* Process with each pixel */
+            for (int k = 0; k < CONV2_FILTERS; k++)
+            {
+                result = 0.0;
+
+                for (int i = 0; i < CONV1_FILTERS; i++)
+                {
+                    result += temp[i] * kernel11[k][i];
+                }
+                result += bias11[k];
+
+                /* Threshold */
+                result = (result < 0) ? 0 : result;
+
+                dst[k].buff[row *dst[k].width + col] = result;
+            }
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

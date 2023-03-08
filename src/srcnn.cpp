@@ -66,6 +66,12 @@ void Convolution11( vector<Mat>& src, Mat& dst, \
 void Convolution55( vector<Mat>& src, Mat& dst, \
                     const float kernel[32][5][5], float bias);
 
+void Convolution99x11( Mat& src, vector<Mat>& dst, \
+                       const float kernel99[CONV1_FILTERS][9][9], \
+                       const float bias99[CONV1_FILTERS], \
+                       const float kernel11[CONV2_FILTERS][CONV1_FILTERS], \
+                       const float bias11[CONV2_FILTERS] );
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static inline int IntTrim(int a, int b, int c)
@@ -231,6 +237,87 @@ void Convolution55(vector<Mat>& src, Mat& dst, const float kernel[32][5][5], flo
             temp = IntTrim(0, 255, temp);
 
             dst.at<unsigned char>(row, col) = (unsigned char)temp;
+        }
+    }
+}
+
+/***
+ * FuncName : Convolution99x11
+ * Function : Complete one cell in the first and second Convolutional Layer
+ * Parameter    : src - the original input image
+ *        dst - the output image
+ *        kernel - the convolutional kernel
+ *        bias - the cell bias
+ * Output   : <void>
+***/
+void Convolution99x11( Mat& src, vector<Mat>& dst, \
+                       const float kernel99[CONV1_FILTERS][9][9], \
+                       const float bias99[CONV1_FILTERS], \
+                       const float kernel11[CONV2_FILTERS][CONV1_FILTERS], \
+                       const float bias11[CONV2_FILTERS] )
+{
+    int row = 0;
+    int col = 0;
+    int height = src.rows;
+    int width = src.cols;
+    float temp[CONV1_FILTERS] = {0.f};
+    int rowf[height + 8] = {0};
+    int colf[width + 8] = {0};
+
+    /* Expand the src image */
+    #pragma omp parallel for
+    for (row = 0; row < height + 8; row++)
+    {
+        rowf[row] = IntTrim(0, height - 1, row - 4);
+    }
+
+    #pragma omp parallel for
+    for (col = 0; col < width + 8; col++)
+    {
+        colf[col] = IntTrim(0, width - 1, col - 4);
+    }
+
+    /* Complete the Convolution Step */
+    #pragma omp parallel for private(col,temp) shared(dst)
+    for (row = 0; row < height; row++)
+    {
+        for (col = 0; col < width; col++)
+        {
+            for (int k = 0; k < CONV1_FILTERS; k++)
+            {
+                /* Convolution */
+                temp[k] = 0.0;
+
+                for (int i = 0; i < 9; i++)
+                {
+                    for (int j = 0; j < 9; j++)
+                    {
+                        temp[k] += kernel99[k][i][j] * src.at<uint8_t>(rowf[row + i], colf[col + j]);
+                    }
+                }
+
+                temp[k] += bias99[k];
+
+                /* Threshold */
+                temp[k] = (temp[k] < 0) ? 0 : temp[k];
+            }
+
+            /* Process with each pixel */
+            for (int k = 0; k < CONV2_FILTERS; k++)
+            {
+                float result = 0.0;
+
+                for (int i = 0; i < CONV1_FILTERS; i++)
+                {
+                    result += temp[i] * kernel11[k][i];
+                }
+                result += bias11[k];
+
+                /* Threshold */
+                result = (result < 0) ? 0 : result;
+
+                dst[k].at<float>(row, col) = result;
+            }
         }
     }
 }
@@ -506,46 +593,18 @@ void* pthreadcall( void* p )
 
     if ( opt_verbose == true )
     {
-        printf( "- Processing convolutional layer I ... " );
-        fflush( stdout );
-    }
-
-    vector<Mat> pImgConv1(CONV1_FILTERS);
-    #pragma omp parallel for
-    for ( unsigned cnt=0; cnt<CONV1_FILTERS; cnt++)
-    {
-        pImgConv1[cnt].create( pImg[0].size(), CV_32F );
-
-        Convolution99( pImg[0],
-                       pImgConv1[cnt],
-                       weights_conv1_data[cnt],
-                       biases_conv1[cnt] );
-    }
-
-    if ( opt_verbose == true )
-    {
-        printf( "completed.\n" );
-        fflush( stdout );
-    }
-
-    /******************* The Second Layer *******************/
-
-    if ( opt_verbose == true )
-    {
-        printf( "- Processing convolutional layer II ... " );
+        printf( "- Processing convolutional layer I + II ... " );
         fflush( stdout );
     }
 
     vector<Mat> pImgConv2(CONV2_FILTERS);
     #pragma omp parallel for
-    for ( unsigned cnt=0; cnt<CONV2_FILTERS; cnt++ )
+    for ( unsigned cnt=0; cnt<CONV2_FILTERS; cnt++)
     {
-        pImgConv2[cnt].create(pImg[0].size(), CV_32F);
-        Convolution11( pImgConv1,
-                       pImgConv2[cnt],
-                       weights_conv2_data[cnt],
-                       biases_conv2[cnt]);
+        pImgConv2[cnt].create( pImg[0].size(), CV_32F );
     }
+
+    Convolution99x11( pImg[0], pImgConv2, weights_conv1_data, biases_conv1, weights_conv2_data, biases_conv2 );
 
     if ( opt_verbose == true )
     {
