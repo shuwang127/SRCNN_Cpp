@@ -5,15 +5,18 @@ CPP = gcc
 CXX = g++
 AR  = ar
 
-OPENCV_INCS = `pkg-config --cflags opencv`
-OPENCV_LIBS = `pkg-config --libs opencv`
+OPENCV_INCS := `pkg-config --cflags opencv4`
+OPENCV_LIBS := `pkg-config --libs opencv4`
 
 SRC_PATH = src
 OBJ_PATH = obj
 BIN_PATH = bin
 TARGET   = srcnn
 
-SRCS = $(wildcard $(SRC_PATH)/*.cpp)
+SRCS += $(SRC_PATH)/frawscale.cpp
+SRCS += $(SRC_PATH)/libsrcnn.cpp
+SRCS += $(SRC_PATH)/tick.cpp
+SRCS += $(SRC_PATH)/srcnn.cpp
 OBJS = $(SRCS:$(SRC_PATH)/%.cpp=$(OBJ_PATH)/%.o)
 
 CFLAGS  = -mtune=native -fopenmp
@@ -21,7 +24,7 @@ CFLAGS += -I$(SRC_PATH)
 CFLAGS += $(OPENCV_INCS)
 
 # Static build may require static-configured openCV.
-LFLAGS  = 
+LFLAGS  =
 LFLAGS += $(OPENCV_LIBS)
 LFLAGS += -static-libgcc -static-libstdc++
 LFLAGS += -s -ffast-math -O3

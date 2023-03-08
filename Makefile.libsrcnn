@@ -14,7 +14,8 @@ LSHARED  = libsrcnn.so.0
 LHEAD    = libsrcnn.h
 TARGET   = $(BIN_PATH)/$(LSTATIC) $(BIN_PATH)/$(LSHARED) $(BIN_PATH)/$(LHEAD)
 
-SRCS = $(wildcard $(SRC_PATH)/*.cpp)
+SRCS += $(SRC_PATH)/frawscale.cpp
+SRCS += $(SRC_PATH)/libsrcnn.cpp
 OBJS = $(SRCS:$(SRC_PATH)/%.cpp=$(OBJ_PATH)/%.o)
 
 CFLAGS  = -DEXPORTLIBSRCNN
@@ -42,11 +43,11 @@ $(OBJS): $(OBJ_PATH)/%.o: $(SRC_PATH)/%.cpp
 
 $(BIN_PATH)/$(LSTATIC): $(OBJS)
 	@echo "Linking $@ ..."
-	$(AR) -q $@ $^
+	@$(AR) -q $@ $^
 
 $(BIN_PATH)/$(LSHARED): $(OBJS)
 	@echo "Linking $@ ..."
-	$(CXX) -shared -Wl,-soname,$(LSHARED) -o $@ $^ $(CFLAGS) $(LDFLAGS)
+	@$(CXX) -shared -Wl,-soname,$(LSHARED) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
 $(BIN_PATH)/$(LHEAD): $(SRC_PATH)/libsrcnn.h
 	@echo "Head $@ ..."

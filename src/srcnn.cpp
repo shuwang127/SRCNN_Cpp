@@ -2,7 +2,7 @@
  * SRCNN: Super-Resolution with deep Convolutional Neural Networks
  * ----------------------------------------------------------------------------
  * Current Author : Raphael Kim ( rageworx@gmail.com )
- * Latest update  : 2018-08-10
+ * Latest update  : 2023-03-08
  * Pre-Author     : Wang Shu
  * Origin-Date    @ Sun 13 Sep, 2015
  * Descriptin ..
@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <cstdint>
 
 #include <unistd.h>
 #include <pthread.h>
@@ -51,7 +52,7 @@ static string   file_dst;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define DEF_STR_VERSION     "0.1.4.16"
+#define DEF_STR_VERSION     "0.1.5.20"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -67,7 +68,7 @@ void Convolution55( vector<Mat>& src, Mat& dst, \
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static int IntTrim(int a, int b, int c)
+static inline int IntTrim(int a, int b, int c)
 {
     int buff[3] = {a, c, b};
     return buff[ (int)(c > a) + (int)(c > b) ];
@@ -84,35 +85,40 @@ static int IntTrim(int a, int b, int c)
 ***/
 void Convolution99(Mat& src, Mat& dst, const float kernel[9][9], float bias)
 {
-    int width, height, row, col, i, j;
-    float temp;
-    height = dst.rows;
-    width = dst.cols;
-    int rowf[height + 8], colf[width + 8];
+    int width  = dst.cols;
+    int height = dst.rows;
+    int row    = 0;
+    int col    = 0;
+    int rowf[height + 8] = {0};
+    int colf[width + 8]  = {0};
 
     /* Expand the src image */
+    #pragma parallel for
     for (row = 0; row < height + 8; row++)
     {
         rowf[row] = IntTrim(0, height - 1, row - 4);
     }
+
+    #pragma parallel for
     for (col = 0; col < width + 8; col++)
     {
         colf[col] = IntTrim(0, width - 1, col - 4);
     }
 
     /* Complete the Convolution Step */
+    #pragma omp parallel for private(col)
     for (row = 0; row < height; row++)
     {
         for (col = 0; col < width; col++)
         {
             /* Convolution */
-            temp = 0;
+            float temp = 0.f;
 
-            for (i = 0; i < 9; i++)
+            for (int i = 0; i < 9; i++)
             {
-                for (j = 0; j < 9; j++)
+                for (int j = 0; j < 9; j++)
                 {
-                    temp += kernel[i][j] * src.at<unsigned char>(rowf[row + i], colf[col + j]);
+                    temp += kernel[i][j] * src.at<uint8_t>(rowf[row + i], colf[col + j]);
                 }
             }
 
@@ -137,19 +143,20 @@ void Convolution99(Mat& src, Mat& dst, const float kernel[9][9], float bias)
 ***/
 void Convolution11(vector<Mat>& src, Mat& dst, const float kernel[CONV1_FILTERS], float bias)
 {
-    int width, height, row, col, i, j;
-    float temp;
-    height = dst.rows;
-    width = dst.cols;
+    int height = dst.rows;
+    int width = dst.cols;
+    int row = 0;
+    int col = 0;
 
+    #pragma omp parallel for private(col)
     for (row = 0; row < height; row++)
     {
         for (col = 0; col < width; col++)
         {
             /* Process with each pixel */
-            temp = 0;
+            float temp = 0.f;
 
-            for (i = 0; i < CONV1_FILTERS; i++)
+            for (int i = 0; i < CONV1_FILTERS; i++)
             {
                 temp += src[i].at<float>(row, col) * kernel[i];
             }
@@ -174,38 +181,41 @@ void Convolution11(vector<Mat>& src, Mat& dst, const float kernel[CONV1_FILTERS]
 ***/
 void Convolution55(vector<Mat>& src, Mat& dst, const float kernel[32][5][5], float bias)
 {
-    int width, height, row, col, i, m, n;
+    int height = dst.rows;
+    int width  = dst.cols;
+    int row    = 0;
+    int col    = 0;
     unsigned cnt;
-    float temp;
-    double temppixel;
-    height = dst.rows;
-    width = dst.cols;
-    int rowf[height + 4], colf[width + 4];
+    int rowf[height + 4] = {0};
+    int colf[width + 4] = {0};
 
     /* Expand the src image */
+    #pragma omp parallel for
     for (row = 0; row < height + 4; row++)
     {
         rowf[row] = IntTrim(0, height - 1, row - 2);
     }
+
+    #pragma omp parallel for
     for (col = 0; col < width + 4; col++)
     {
         colf[col] = IntTrim(0, width - 1, col - 2);
     }
 
     /* Complete the Convolution Step */
-    //#pragma omp parallel for
+    #pragma omp parallel for private(col)
     for (row = 0; row < height; row++)
     {
         for (col = 0; col < width; col++)
         {
-            temp = 0;
+            float temp = 0;
 
-            for (i = 0; i < CONV2_FILTERS; i++)
+            for (int i = 0; i < CONV2_FILTERS; i++)
             {
-                temppixel = 0;
-                for (m = 0; m < 5; m++)
+                double temppixel = 0;
+                for (int m = 0; m < 5; m++)
                 {
-                    for (n = 0; n < 5; n++)
+                    for (int n = 0; n < 5; n++)
                     {
                         temppixel += \
                         kernel[i][m][n] * src[i].at<float>(rowf[row + m], colf[col + n]);
@@ -223,8 +233,6 @@ void Convolution55(vector<Mat>& src, Mat& dst, const float kernel[32][5][5], flo
             dst.at<unsigned char>(row, col) = (unsigned char)temp;
         }
     }
-
-    //return;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -331,7 +339,7 @@ void printTitle()
 {
     printf( "%s : Super-Resolution with deep Convolutional Neural Networks\n",
             file_me.c_str() );
-    printf( "(C)2018 Raphael Kim, (C)2014 Wang Shu., version %s\n",
+    printf( "(C)2018..2023 Raphael Kim, (C)2014 Wang Shu., version %s\n",
             DEF_STR_VERSION );
     printf( "Built with OpenCV version %s\n", CV_VERSION );
 }

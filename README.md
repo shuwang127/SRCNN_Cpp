@@ -2,6 +2,9 @@
 This project was forked from https://github.com/shuwang127/SRCNN_Cpp, An Open source project of **"C++ Implementation of Super-Resolution resizing with Convolutional Neural Network"**.
 And this project includes non-OpenCV library name called as ...
 
+## latest update
+* OpenCV4 compatibility updated.
+
 ## non-openCV model, libsrcnn
 * **libsrcnn** is a stand-alone library that no dependancy with OpenCV.
 * it is about 4 times more faster than OpenCV model, and currently it was moved to [libsrcnn](https://github.com/rageworx/libsrcnn) repository.
@@ -57,9 +60,9 @@ SRCNN:
         1. After installed Brew :
         ```
         brew update
-        brew install opencv3
+        brew install opencv4
         ```
-1. Static build OpenCV ( when you are using Makefile.static )
+1. Manual staic build OpenCV ( if needed )
     - Clone or download OpenCV source to you base level directory of this sources.
     - Go to opencv, then make a 'build' directory.
     - Type like this ( in case of MSYS2 Makefile )

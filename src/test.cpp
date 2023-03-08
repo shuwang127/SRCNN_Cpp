@@ -26,8 +26,9 @@
 #include <FL/images/png.h>
 #endif
 
+#include <fl_imgtk.h>
+
 #include "libsrcnn.h"
-#include "fl_imgtk.h"
 #include "tick.h"
 
 bool convImage( Fl_RGB_Image* src, Fl_RGB_Image* &dst )
@@ -90,7 +91,7 @@ bool convImage( Fl_RGB_Image* src, Fl_RGB_Image* &dst )
                     }
                 }
                 break;
-				
+
 			case 4: /// removing alpha ...
                 {
                     const unsigned short* pdata = (const unsigned short*)src->data()[0];
@@ -114,7 +115,7 @@ bool convImage( Fl_RGB_Image* src, Fl_RGB_Image* &dst )
                         }
                     }
                 }
-                break;			
+                break;
 
             default:
                 {
@@ -273,35 +274,36 @@ bool savetocolorpng( Fl_RGB_Image* imgcached, const char* fpath )
 
 
 int main( int argc, char** argv )
-{	
-	printf( "Test for SRCNN with FLTK-1.3.4-1-ts\n" );
-	printf( "(C)2018 Raphael Kim\n\n" );
+{
+	printf( "Test for SRCNN with FLTK-%d.%d.%d\n",
+            FL_MAJOR_VERSION, FL_MINOR_VERSION, FL_PATCH_VERSION );
+	printf( "(C)2018...2023 Raphael Kim\n\n" );
 	fflush( stdout );
-	
-	const char imgtestpath[] = "Pictures/butterfly_GT.bmp";
-	
+
+	const char imgtestpath[] = "Pictures/butterfly.png";
+
 	Fl_RGB_Image* imgTest = NULL;
-	
+
 	uchar* imgbuff = NULL;
 	size_t imgsz = 0;
-	
+
     int imgtype = testImageFile( imgtestpath, &imgbuff, &imgsz );
 	if ( imgtype > 0 )
 	{
 		printf( "- Image loaded : ");
-		
+
 		switch( imgtype )
 		{
 			case 1: /// JPEG
 				printf( "JPEG | ");
-				
+
 				imgTest = new Fl_JPEG_Image( "JPGIMG",
 											(const uchar*)imgbuff );
 				break;
 
 			case 2: /// PNG
 				printf( "PNG | " );
-				
+
 				imgTest = new Fl_PNG_Image( "PNGIMAGE",
 										   (const uchar*)imgbuff, imgsz );
 				break;
@@ -311,22 +313,22 @@ int main( int argc, char** argv )
 				imgTest = fl_imgtk::createBMPmemory( (const char*)imgbuff, imgsz );
 				break;
 		}
-		
+
 		if ( imgTest != NULL )
 		{
 			printf( "%u x %u x %u\n", imgTest->w(), imgTest->h(), imgTest->d() );
 			fflush( stdout );
 		}
 	}
-	
+
 	if ( imgTest != NULL )
 	{
 		Fl_RGB_Image* imgRGB = NULL;
-		
+
 		convImage( imgTest, imgRGB );
-		
+
 		delete imgTest;
-		
+
 		if ( ( imgRGB->w() > 0 ) && ( imgRGB->h() > 0 ) )
 		{
 			const uchar* refbuff = (const uchar*)imgRGB->data()[0];
@@ -336,12 +338,12 @@ int main( int argc, char** argv )
 			float mulf = 2.0f;
 			uchar*       outbuff = NULL;
 			unsigned	 outsz   = 0;
-			
+
 			printf( "- Processing SRCNN ... " );
 			fflush( stdout );
-			
+
 			unsigned     tick0 = tick::getTickCount();
-			
+
 			int reti = ProcessSRCNN( refbuff,
 			                         ref_w,
 							 		 ref_h,
@@ -349,16 +351,16 @@ int main( int argc, char** argv )
 						 			 mulf,
 					 				 outbuff,
 									 outsz );
-			
+
 			unsigned     tick1 = tick::getTickCount();
-			
+
 			if ( ( reti == 0 ) && ( outsz > 0 ) )
 			{
 				unsigned new_w = ref_w * mulf;
 				unsigned new_h = ref_h * mulf;
-				
+
 				printf( "Test Ok, took %u ms.\n", tick1 - tick0 );
-			
+
 				Fl_RGB_Image* imgDump = new Fl_RGB_Image( outbuff, new_w, new_h, 3 );
 				if ( imgDump != NULL )
 				{
@@ -370,7 +372,7 @@ int main( int argc, char** argv )
 			{
 				printf( "Failed, error code = %d\n", reti );
 			}
-			
+
 			delete imgRGB;
 		}
 		else
@@ -384,12 +386,14 @@ int main( int argc, char** argv )
 		printf( "Failed to load bitmap.\n" );
 	}
 
+#ifdef DEBUG
 	// let check memory leak before program terminated.
 	printf( "- Input any number and press ENTER to terminate, check memory state.\n" );
 	fflush( stdout );
 	unsigned meaningless = 0;
 	scanf( "%d", &meaningless );
-	
+#endif /// of DEBUG
+
 	return 0;
 }
 

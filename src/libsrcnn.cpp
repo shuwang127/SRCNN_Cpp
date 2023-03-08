@@ -264,7 +264,7 @@ void convertYCbCrtoImgU8( ImgYCbCr &src, ImgU8* &out )
     }
 }
 
-void copyImgU8toImgF32( ImgU8 &src, ImgF32 &dest)
+void copyImgU8toImgF32( ImgU8 &src, ImgF32 &dest )
 {
     unsigned imgszc = src.width * src.height;
     unsigned imgsz = dest.width * dest.height;
@@ -272,6 +272,7 @@ void copyImgU8toImgF32( ImgU8 &src, ImgF32 &dest)
     if ( imgszc != imgsz)
         return;
 
+    #pragma omp parallel for
     for( unsigned cnt = 0; cnt < imgsz; cnt++ )
     {
         float f  = src.buff[cnt];
@@ -357,7 +358,6 @@ void convolution99( ImgF32 &src, ImgF32 &dst, const KernelMat99 kernel, float bi
 
 void convolution11( ImgConv1Layers &src, ImgF32 &dst, const ConvKernel1 kernel, float bias )
 {
-    //#pragma omp parallel for
     for ( unsigned row=0; row<dst.height; row++ )
     {
         for ( unsigned col=0; col<dst.width; col++ )
