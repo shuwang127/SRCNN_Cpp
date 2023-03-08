@@ -4,11 +4,12 @@ And this project includes non-OpenCV library name called as ...
 
 ## latest update
 * OpenCV4 compatibility updated.
+* Supporting macOS universal binary.
 
 ## non-openCV model, libsrcnn
 * **libsrcnn** is a stand-alone library that no dependancy with OpenCV.
 * it is about 4 times more faster than OpenCV model, and currently it was moved to [libsrcnn](https://github.com/rageworx/libsrcnn) repository.
-* Notice: this project contains old version of libsrcnn.
+* ~Notice: this project contains old version of libsrcnn.~ removed.
 
 ### Bug Notice
  Original source SRCNN has bug at final merge process, and this source code also got same bug, too. Recommend to use my another library based on this project,  [libsrcnn](https://github.com/rageworx/libsrcnn).
@@ -26,12 +27,12 @@ This is an open source project from original of this:
  - And thank you very much for Chao's work in SRCNN.
 
 ### What changed ?
-1. Code modified many things from original.
-1. OpenMP parallel looping, improved performance.
+1. Code modified many things from original SRCNN.
+1. OpenMP parallel processing, improved performance.
 1. Supports almost of platform - POSIX compatibled.
     - MSYS2 and MinGW-W64
     - GCC of Linux
-    - LLVM or CLANG of MacOSX.
+    - LLVM or CLANG of macOS, suporting universal binary build.
 
 ### License
 Follows original SRCNN_Cpp, and it is released under the GPL v2 License (refer to the LICENSE file for details).

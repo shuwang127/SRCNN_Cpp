@@ -5,8 +5,15 @@ CPP = gcc
 CXX = g++
 AR  = ar
 
-OPENCV_INCS = `pkg-config --static --cflags opencv`
-OPENCV_LIBS = `pkg-config --static --libs opencv`
+# sense macOS kernel type
+KERNEL    = $(shell uname -s)
+KRNL_ARCH = $(shell uname -m)
+KRNL_VER  = $(shell uname -r | cut -d . -f1)
+KERNELID  = $(KERNEL)
+MACHINEID = universal
+
+OPENCV_INCS = `pkg-config opencv4 --static --cflags`
+OPENCV_LIBS = `pkg-config opencv4 --static --libs`
 
 SRC_PATH = src
 OBJ_PATH = obj
@@ -26,6 +33,18 @@ LFLAGS  =
 LFLAGS += $(OPENCV_LIBS)
 LFLAGS += -static-libgcc -static-libstdc++
 LFLAGS += -s -ffast-math -O3
+
+# architecture flag setting.
+# Darwin, kernel 20 (big sur) automatically using universal binary.
+ifeq ($(KERNEL),Darwin)
+    ifeq ($(shell test $(KRNL_VER) -gt 19; echo $$?),0)
+        CFLAGS += -arch x86_64 -arch arm64
+        CFLAGS += -mmacosx-version-min=11.0
+        LFLAGS += -arch x86_64 -arch arm64
+    endif
+endif
+
+.PHONY: prepare clean all
 
 all: prepare $(BIN_PATH)/$(TARGET)
 
