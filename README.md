@@ -41,9 +41,9 @@ Follows original SRCNN_Cpp, and it is released under the GPL v2 License (refer t
 Origin:  
 ![Example](Pictures/butterfly.png)  
 Bicubic interplation:  
-![Example](Pictures/butterfly-cubic.jpg)  
-SRCNN:  
-![Example](Pictures/butterfly-srcnn.jpg)  
+![Example](Pictures/butterfly-cubic.png)  
+SRCNN:
+![Example](Pictures/butterfly-srcnn.png)  
 
 ### Requirements
 1. Windows may need [MSYS2](https://www.msys2.org/) and [MinGW-W64](https://github.com/msys2/msys2/wiki/MSYS2-installation).
