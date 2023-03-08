@@ -38,12 +38,17 @@ This is an open source project from original of this:
 Follows original SRCNN_Cpp, and it is released under the GPL v2 License (refer to the LICENSE file for details).
 
 ### Example
-Origin:  
-![Example](Pictures/butterfly.png)  
-Bicubic interplation:  
-![Example](Pictures/butterfly-cubic.png)  
-SRCNN:
-![Example](Pictures/butterfly-srcnn.png)  
+- Origin:
+
+    ![Example](Pictures/butterfly.png)  
+
+- Bicubic interplation x1.5
+
+    ![Example](Pictures/butterfly-bicubic.png)
+
+- SRCNN x1.5
+
+    ![Example](Pictures/butterfly-srcnn.png)  
 
 ### Requirements
 1. Windows may need [MSYS2](https://www.msys2.org/) and [MinGW-W64](https://github.com/msys2/msys2/wiki/MSYS2-installation).
