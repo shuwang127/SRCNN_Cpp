@@ -1,21 +1,15 @@
-# SRCNN OpenCV GCC
-This project was forked from https://github.com/shuwang127/SRCNN_Cpp, An Open source project of **"C++ Implementation of Super-Resolution resizing with Convolutional Neural Network"**.
-And this project includes non-OpenCV library name called as ...
+# SRCNN_Cpp
+This project is an open source project of **"C++ Implementation of Super-Resolution resizing with Convolutional Neural Network"**.
 
 ## latest update
-* OpenCV4 compatibility updated.
+* Pull request accepted from [SRCNN_OpenCV_GCC](https://github.com/rageworx/SRCNN_OpenCV_GCC), which has been verified in Linux environment with updated OpenCV 4. Original reporitory with OpenCV 3 has been archived in [V1.0.0](https://github.com/shuwang127/SRCNN_Cpp/tree/V1.0.0-2015) branch. Thanks for the contributions from [rageworx](https://github.com/rageworx).
+* OpenCV 4 compatibility updated.
 * Supporting macOS universal binary.
 
-## non-openCV model, libsrcnn
-* **libsrcnn** is a stand-alone library that no dependancy with OpenCV.
-* it is about 4 times more faster than OpenCV model, and currently it was moved to [libsrcnn](https://github.com/rageworx/libsrcnn) repository.
-* ~Notice: this project contains old version of libsrcnn.~ removed.
-
-### Bug Notice
- Original source SRCNN has bug at final merge process, and this source code also got same bug, too. Recommend to use my another library based on this project,  [libsrcnn](https://github.com/rageworx/libsrcnn).
-
-### Discontinued Notice 
- This project is currently discontinued, please check new [libsrcnn](https://github.com/rageworx/libsrcnn) repository for more faster, and no need to link to OpenCV.
+## Non-OpenCV models
+OpenCV is too large for specific applications, you may need the following two non-OpenCV models in some cases. 
+* **libsrcnn** is a stand-alone non-OpenCV library, with 4 times more faster than OpenCV model: [rageworx/libsrcnn](https://github.com/rageworx/libsrcnn).
+* **stb-image-srcnn** is an [stb](https://github.com/nothings/stb)-based non-OpenCV library: [zvezdochiot/stb-image-srcnn](https://github.com/ImageProcessing-ElectronicPublications/stb-image-srcnn).
 
 ### Introduction
 This is an open source project from original of this:
@@ -27,7 +21,7 @@ This is an open source project from original of this:
  - And thank you very much for Chao's work in SRCNN.
 
 ### What changed ?
-1. Code modified many things from original SRCNN.
+1. Code modification from original [SRCNN](https://github.com/shuwang127/SRCNN_Cpp/tree/V1.0.0-2015).
 1. OpenMP parallel processing, improved performance.
 1. Supports almost of platform - POSIX compatibled.
     - MSYS2 and MinGW-W64
@@ -35,7 +29,7 @@ This is an open source project from original of this:
     - LLVM or CLANG of macOS, suporting universal binary build.
 
 ### License
-Follows original SRCNN_Cpp, and it is released under the GPL v2 License (refer to the LICENSE file for details).
+The repo is released under the GPL v2 License (refer to the LICENSE file for details).
 
 ### Example
 - Origin:
@@ -58,31 +52,54 @@ Follows original SRCNN_Cpp, and it is released under the GPL v2 License (refer t
     - Debian: ```sudo apt-get install libopencv-dev```
     - MacOS
         1. Before install Brew : 
-        ```
+        ```bash
         sudo xcode-select --install 
         sudo xcodebuild -license
         ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
         ```
         1. After installed Brew :
-        ```
+        ```bash
         brew update
         brew install opencv4
         ```
-1. Manual staic build OpenCV ( if needed )
+1. Manual staic build OpenCV [Refer to [OpenCV Installation](https://docs.opencv.org/3.4/d7/d9f/tutorial_linux_install.html)]
     - Clone or download OpenCV source to you base level directory of this sources.
+    ```bash
+    cd ~/<my_working_directory>
+    git clone https://github.com/opencv/opencv.git
+    git clone https://github.com/opencv/opencv_contrib.git
+    ```
     - Go to opencv, then make a 'build' directory.
-    - Type like this ( in case of MSYS2 Makefile )
-      ```
-      cmake -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DENABLE_PRECOMPILED_HEADERS=OFF -DWITH_IPP=OFF -DWITH_TBB=OFF -DWITH_FFMPEG=OFF -DWITH_MSMF=OFF -DWITH_VFW=OFF -DWITH_OPENMP=ON ..
-      ```      
+    ```bash
+    cd ~/opencv
+    mkdir build
+    cd build
+    cmake -D CMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX=/usr/local ..
+    make -j8 # runs 8 jobs in parallel
+    sudo make install
+    ```
+    - In case of MSYS2 Makefile, type like this.
+    ```
+    cmake -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DENABLE_PRECOMPILED_HEADERS=OFF -DWITH_IPP=OFF -DWITH_TBB=OFF -DWITH_FFMPEG=OFF -DWITH_MSMF=OFF -DWITH_VFW=OFF -DWITH_OPENMP=ON ..
+    ```      
     - This project doesn't using video decoding, and there's too many erorrs occurs on Video processing source in OpenCV ( damn sucks cmake options, they're useless )
 
 
-### Compile
+### Compile and Use
 You can compile the C/C++ files on the command line in your POSIX shell. 
 
-``` Shell
+```bash
 make
 ```
 If the compile is successful, you will see linked binary in 'bin' directory.
+
+```bash
+./bin/srcnn ./Pictures/test.jpg 
+```
+
+The generated image will be `./Pictures/test_resized.jpg`.
+
+
+
+
 
