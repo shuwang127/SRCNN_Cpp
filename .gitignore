@@ -5,3 +5,4 @@ Pictures/*_resized.*
 testout.png
 *.o
 *.bak
+.DS-Store

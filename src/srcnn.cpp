@@ -95,8 +95,9 @@ void Convolution99(Mat& src, Mat& dst, const float kernel[9][9], float bias)
     int height = dst.rows;
     int row    = 0;
     int col    = 0;
-    int rowf[height + 8] = {0};
-    int colf[width + 8]  = {0};
+    // macOS clang displays these array not be initialized.
+    int rowf[height + 8];
+    int colf[width + 8];
 
     /* Expand the src image */
     #pragma parallel for
@@ -191,9 +192,9 @@ void Convolution55(vector<Mat>& src, Mat& dst, const float kernel[32][5][5], flo
     int width  = dst.cols;
     int row    = 0;
     int col    = 0;
-    unsigned cnt;
-    int rowf[height + 4] = {0};
-    int colf[width + 4] = {0};
+    // macOS these array not be initalized by zero.
+    int rowf[height + 4];
+    int colf[width + 4];
 
     /* Expand the src image */
     #pragma omp parallel for
@@ -261,8 +262,9 @@ void Convolution99x11( Mat& src, vector<Mat>& dst, \
     int height = src.rows;
     int width = src.cols;
     float temp[CONV1_FILTERS] = {0.f};
-    int rowf[height + 8] = {0};
-    int colf[width + 8] = {0};
+    // macOS llvm not able to init zero.
+    int rowf[height + 8];
+    int colf[width + 8];
 
     /* Expand the src image */
     #pragma omp parallel for
